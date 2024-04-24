@@ -59,7 +59,7 @@ const arrEq = <T>(x: T[], y: T[]): boolean => {
 const doTxn = <KeyIn, KeyOut, ValIn, ValOut, T>(
   dbOrTxn: Database<KeyIn, KeyOut, ValIn, ValOut> | Transaction<KeyIn, KeyOut, ValIn, ValOut>,
   body: (tn: Transaction<KeyIn, KeyOut, ValIn, ValOut>) => Promise<T>): Promise<T> => {
-  
+
   return (dbOrTxn instanceof Database) ? dbOrTxn.doTn(body) : body(dbOrTxn)
 }
 
@@ -78,7 +78,7 @@ export const counterEncoding: Transformer<number, number> = {
 
     const lowBits = (val & 0xffffffff) >>> 0
     const highBits = ((val - lowBits) / 0x100000000) >>> 0
-      
+
     b.writeUInt32LE(lowBits, 0) // low
     b.writeUInt32LE(highBits, 4) // high
     return b
@@ -242,7 +242,7 @@ export class HighContentionAllocator {
         if (latest_counter!.length > 0 && latest_counter![0] > start) break
 
         if (candidate_in_use! === false) {
-          // Hooray! The candidate key isn't used by anyone else. Tag and bag! Marking it as a write conflict key stops 
+          // Hooray! The candidate key isn't used by anyone else. Tag and bag! Marking it as a write conflict key stops
           recent.addWriteConflictKey(candidate)
           return tuple.pack(candidate)
         }
@@ -387,12 +387,12 @@ export class Directory<KeyIn = NativeValue, KeyOut = Buffer, ValIn = NativeValue
         contentSubspace: contentSubspace,
       })
       directoryLayer._path = path
-  
+
       // super(directoryLayer, path, subspace, 'partition')
       this._layer = PARTITION_BUF
-  
+
       this._directoryLayer = directoryLayer
-      this._parentDirectoryLayer = parentDirectoryLayer  
+      this._parentDirectoryLayer = parentDirectoryLayer
     } else {
       this._layer = layer ? asBuf(layer) : null
       this._directoryLayer = parentDirectoryLayer
@@ -420,7 +420,7 @@ export class Directory<KeyIn = NativeValue, KeyOut = Buffer, ValIn = NativeValue
   createOrOpen(txnOrDb: TxnAny | DbAny, path: PathIn, layer?: 'partition' | NativeValue) { // partition specified for autocomplete.
     return this._directoryLayer.createOrOpen(txnOrDb, this._partitionSubpath(path), layer)
   }
-  
+
   open(txnOrDb: TxnAny | DbAny, path: PathIn, layer?: 'partition' | NativeValue) {
     return this._directoryLayer.open(txnOrDb, this._partitionSubpath(path), layer)
   }
@@ -428,7 +428,7 @@ export class Directory<KeyIn = NativeValue, KeyOut = Buffer, ValIn = NativeValue
   create(txnOrDb: TxnAny | DbAny, path: PathIn, layer?: 'partition' | NativeValue, prefix?: Buffer) {
     return this._directoryLayer.create(txnOrDb, this._partitionSubpath(path), layer, prefix)
   }
-  
+
   async *list(txn: TxnAny, path: PathIn = []) {
     yield *this._directoryLayer.list(txn, this._partitionSubpath(path))
   }
@@ -455,7 +455,7 @@ export class Directory<KeyIn = NativeValue, KeyOut = Buffer, ValIn = NativeValue
     const layer = this.getLayerForPath(path)
     return layer.remove(txnOrDb, this._partitionSubpath(path, layer))
   }
-  
+
   async removeIfExists(txnOrDb: TxnAny | DbAny, path?: PathIn) {
     const layer = this.getLayerForPath(path)
     return layer.removeIfExists(txnOrDb, this._partitionSubpath(path, layer))
@@ -516,7 +516,7 @@ export class DirectoryLayer {
   _nodeSubspace: NodeSubspace
   _contentSubspace: Subspace<TupleIn, TupleItem[], any, any>
   _allowManualPrefixes: boolean
-  
+
   _rootNode: NodeSubspace
 
   _allocator: HighContentionAllocator
@@ -528,15 +528,15 @@ export class DirectoryLayer {
     // The root of the database has the values themselves, using the allocation
     // number as the prefix. Note that 0xfe (the default node prefix) is intentionally
     // an invalid tuple.
-    
+
     this._nodeSubspace = opts.nodeSubspace?.withKeyEncoding(tuple)
       || new Subspace(opts.nodePrefix == null ? DEFAULT_NODE_PREFIX : opts.nodePrefix, tuple, defaultTransformer)
-    
+
     this._contentSubspace = opts.contentSubspace?.withKeyEncoding(tuple)
       || new Subspace(opts.contentPrefix == null ? BUF_EMPTY : opts.contentPrefix, tuple, defaultTransformer)
-    
+
     this._allowManualPrefixes = opts.allowManualPrefixes || false
-    
+
     this._rootNode = this._nodeSubspace.at(this._nodeSubspace.prefix)
     this._allocator = new HighContentionAllocator(this._rootNode.at(HCA_PREFIX))
 
@@ -569,12 +569,12 @@ export class DirectoryLayer {
       if (path.length === 0) throw new DirectoryError('Cannot specify a prefix unless manual prefixes are enabled.')
       else throw new DirectoryError('Cannot specify a prefix in a partition.')
     }
-    
+
     if (path.length === 0) throw new DirectoryError('The root directory cannot be opened.')
-    
+
     return doTxn(txnOrDb, async txn => {
       await this._checkVersion(txn, false)
-      
+
       const existing_node = await this.findWithMeta(txn, path)
       if (existing_node.exists()) {
         // The directory exists. Open it!
@@ -662,7 +662,7 @@ export class DirectoryLayer {
   create<KeyIn, KeyOut, ValIn, ValOut>(txnOrDb: DbOrTxn<KeyIn, KeyOut, ValIn, ValOut>, path: PathIn, layer: 'partition' | NativeValue = BUF_EMPTY, prefix?: Buffer): Promise<Directory<KeyIn, KeyOut, ValIn, ValOut>> {
     return this._createOrOpenInternal(txnOrDb, path, layer, prefix, true, false)
   }
-  
+
   /**
    * Moves the directory found at `old_path` to `new_path`.
    *
@@ -732,7 +732,7 @@ export class DirectoryLayer {
   remove(txnOrDb: TxnAny | DbAny, path: PathIn) {
     return this._removeInternal(txnOrDb, path, true)
   }
-  
+
   /**
    * Removes the directory, its contents, and all subdirectories, if it exists.
    * Returns true if the directory existed and false otherwise.
@@ -749,22 +749,22 @@ export class DirectoryLayer {
 
     return doTxn(txnOrDb, async txn => {
       await this._checkVersion(txn, true)
-      
+
       if (path.length === 0) throw new DirectoryError('The root directory cannot be removed.')
-      
+
       const node = await this.findWithMeta(txn, path)
-      
+
       if (!node.exists()) {
         if (failOnNonexistent) throw new DirectoryError('The directory does not exist.')
         else return false
       }
-      
+
       if (node.isInPartition()) {
         return await node.getContentsSync(this)!
           ._directoryLayer
           ._removeInternal(txn, node.getPartitionSubpath(), failOnNonexistent)
       }
-      
+
       await this._removeRecursive(txn, node.subspace!)
       await this._removeFromParent(txn, path)
       return true
@@ -777,11 +777,11 @@ export class DirectoryLayer {
    */
   async *list(txn: TxnAny, _path: PathIn): AsyncGenerator<Buffer, void, void> {
     await this._checkVersion(txn, false)
-  
+
     const path = normalize_path(_path)
     const node = await this.findWithMeta(txn, path)
     if (!node.exists()) throw new DirectoryError('The directory does not exist.')
-  
+
     if (node.isInPartition(true)) {
       yield* node.getContentsSync(this)!
         .list(txn, node.getPartitionSubpath())
@@ -837,7 +837,7 @@ export class DirectoryLayer {
       const prev_prefix = k[0] as Buffer
       if (startsWith(key, prev_prefix)) return this._nodeWithPrefix(prev_prefix)
     }
-    
+
     return null
   }
 
@@ -955,4 +955,3 @@ export class DirectoryLayer {
       && (await txn.at(this._nodeSubspace).getRangeAll(prefix, strInc(prefix), {limit: 1})).length === 0
   }
 }
-

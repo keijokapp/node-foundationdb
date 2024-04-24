@@ -63,7 +63,7 @@ fdb.setAPIVersion(700) // Must be called before database is opened
       author: 'Laloux'
     })
   })
-  
+
   console.log('now book 123 is', await db.get(['books', 123])) // shorthand for db.doTransaction(...)
   // now book 123 is { title: 'Reinventing Organizations', author: 'Laloux' }
 })()
@@ -621,7 +621,7 @@ Foundationdb allows you to bake the current version number into a key or value i
 
 > *Danger 💣* These values are unique to your FDB cluster. You may run into issues if you ever export your data then re-import it into a different FDB cluster.
 
-During a transaction you can get a promise to read the resulting version with `tn.getVersionstamp() => {promise: Promise<Buffer>}`. Note: 
+During a transaction you can get a promise to read the resulting version with `tn.getVersionstamp() => {promise: Promise<Buffer>}`. Note:
 
 - `getVersionstamp` may only be called on transactions with write operations
 - The returned promise will not resolve until after the transaction has been committed. Awaiting this promise inside your transaction body will deadlock your program. For this reason, the returned value is wrapped in an object.

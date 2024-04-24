@@ -6,6 +6,4 @@ export const getBoundaryKeys = (db: Database, begin: Buffer, end: Buffer) => {
     read_system_keys: true,
     lock_aware: true,
   })
-
-  
 }

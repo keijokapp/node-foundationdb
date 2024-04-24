@@ -119,7 +119,7 @@ interface TxnCtx {
  */
 export default class Transaction<KeyIn = NativeValue, KeyOut = Buffer, ValIn = NativeValue, ValOut = Buffer> {
   /** @internal */ _tn: NativeTransaction
-  
+
   isSnapshot: boolean
   subspace: Subspace<KeyIn, KeyOut, ValIn, ValOut>
 
@@ -127,13 +127,13 @@ export default class Transaction<KeyIn = NativeValue, KeyOut = Buffer, ValIn = N
   // sure if this is a good idea.
   private _keyEncoding: Transformer<KeyIn, KeyOut>
   private _valueEncoding: Transformer<ValIn, ValOut>
-  
+
   private _ctx: TxnCtx
-  
+
   /**
    * NOTE: Do not call this directly. Instead transactions should be created
    * via db.doTn(...)
-   * 
+   *
    * @internal
    */
   constructor(tn: NativeTransaction, snapshot: boolean,
@@ -379,9 +379,9 @@ export default class Transaction<KeyIn = NativeValue, KeyOut = Buffer, ValIn = N
    * This method is functionally the same as *getRange*, but values are returned
    * in the batches they're delivered in from the database. This method is
    * present because it may be marginally faster than `getRange`.
-   * 
+   *
    * Example:
-   * 
+   *
    * ```
    * for await (const batch of tn.getRangeBatch(0, 1000)) {
    *   for (let k = 0; k < batch.length; k++) {
@@ -390,7 +390,7 @@ export default class Transaction<KeyIn = NativeValue, KeyOut = Buffer, ValIn = N
    *   }
    * }
    * ```
-   * 
+   *
    * @see Transaction.getRange
    */
   async *getRangeBatch(
@@ -406,7 +406,7 @@ export default class Transaction<KeyIn = NativeValue, KeyOut = Buffer, ValIn = N
 
     let start: KeySelector<string | Buffer>, end: KeySelector<string | Buffer>
     const startSelEnc = keySelector.from(_start)
-    
+
     if (_end == null) {
       const range = this.subspace.packRange(startSelEnc.key)
       start = keySelector(range.begin, startSelEnc.orEqual, startSelEnc.offset)
@@ -497,7 +497,7 @@ export default class Transaction<KeyIn = NativeValue, KeyOut = Buffer, ValIn = N
    * Same as getRange, but prefetches and returns all values in an array rather
    * than streaming the values over the wire. This is often more convenient, and
    * makes sense when dealing with a small range.
-   * 
+   *
    * @see Transaction.getRange
    *
    * @returns array of [key, value] pairs
@@ -519,7 +519,7 @@ export default class Transaction<KeyIn = NativeValue, KeyOut = Buffer, ValIn = N
   getRangeAllStartsWith(prefix: KeyIn | KeySelector<KeyIn>, opts?: RangeOptions) {
     return this.getRangeAll(prefix, undefined, opts)
   }
-  
+
   /**
    * Removes all key value pairs from the database in between start and end.
    *
@@ -692,7 +692,7 @@ export default class Transaction<KeyIn = NativeValue, KeyOut = Buffer, ValIn = N
   }
 
   // TODO: These method names are a bit confusing.
-  // 
+  //
   // The short version is, if you're using the tuple type with an unbound
   // versionstamp, use setVersionstampedKey. Otherwise if you just want your
   // key to be baked out with a versionstamp after it, use

@@ -52,14 +52,14 @@ static napi_value setAPIVersion(napi_env env, napi_callback_info info) {
 
   int32_t apiVersion;
   NAPI_OK_OR_RETURN_NULL(env, napi_get_value_int32(env, args[0], &apiVersion));
-  
+
   if (previousApiVersion != 0) {
     if (apiVersion != previousApiVersion) {
       FDB_OK_OR_RETURN_NULL(env, fdb_select_api_version(apiVersion));
     }
   } else {
     FDB_OK_OR_RETURN_NULL(env, fdb_select_api_version(apiVersion));
-    previousApiVersion = apiVersion;    
+    previousApiVersion = apiVersion;
   }
   return NULL;
 }
@@ -71,14 +71,14 @@ static napi_value setAPIVersionImpl(napi_env env, napi_callback_info info) {
   NAPI_OK_OR_RETURN_NULL(env, napi_get_value_int32(env, args[0], &apiVersion));
   int32_t headerVersion;
   NAPI_OK_OR_RETURN_NULL(env, napi_get_value_int32(env, args[1], &headerVersion));
-  
+
   if (previousApiVersion != 0) {
     if (apiVersion != previousApiVersion) {
       FDB_OK_OR_RETURN_NULL(env, fdb_select_api_version_impl(apiVersion, headerVersion));
     }
   } else {
     FDB_OK_OR_RETURN_NULL(env, fdb_select_api_version_impl(apiVersion, headerVersion));
-    previousApiVersion = apiVersion;    
+    previousApiVersion = apiVersion;
   }
   return NULL;
 }
@@ -113,7 +113,7 @@ static napi_value createDatabase(napi_env env, napi_callback_info info) {
     napi_valuetype type;
     NAPI_OK_OR_RETURN_NULL(env, napi_typeof(env, filenameOrNull, &type));
     if (type != napi_null && type != napi_undefined && type != napi_string) return NULL;
-    
+
     if (type == napi_string) {
       // This effectively enforces a hardcoded 1024 character limit on cluster file
       // paths. In practice this should be fine.
@@ -161,7 +161,7 @@ static napi_value errorPredicate(napi_env env, napi_callback_info info) {
   size_t argc = 2;
   napi_value args[2];
   NAPI_OK_OR_RETURN_NULL(env, napi_get_cb_info(env, info, &argc, args, NULL, NULL));
-  
+
   int test;
   NAPI_OK_OR_RETURN_NULL(env, napi_get_value_int32(env, args[0], &test));
 
