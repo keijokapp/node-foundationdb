@@ -313,16 +313,16 @@ MaybeValue watchFuture(napi_env env, FDBFuture *f, bool ignoreStandardErrors) {
     NAPI_OK_OR_RETURN_STATUS(env, napi_remove_wrap(env, jsWatch, NULL));
     // By default node promises will crash the whole process. If the
     // transaction which created this watch promise is cancelled or conflicts,
-    // what should we do here? 
+    // what should we do here?
     // 1 If we reject the promise, the process will crash by default.
     //   Preventing this with the current API is really awkward
     // 2 If we resolve the promise that doesn't really make a lot of sense
     // 3 If we leave the promise dangling.. that sort of violates the idea of a
     //   *promise*
-    // 
+    //
     // By default I'm going to do option 2 (well, when ignoreStandardErrors is
     // passed, which happens by default).
-    // 
+    //
     // The promise will resolve (true) normally, or (false) if it was aborted.
     if (errcode && ctx->ignoreStandardErrors && (
         errcode == 1101 // operation_cancelled

@@ -18,7 +18,7 @@ export function set(version: number, headerVersion?: number) {
   } else {
     // Old versions probably work fine, but there are no tests to check.
     if (version < 500) throw Error('FDB Node bindings only support API versions >= 500')
-    
+
     if (version > MAX_VERSION) {
       // I'd like allow it to work with newer versions anyway since API
       // changes seem to be backwards compatible, but nativeMod.setAPIVersion

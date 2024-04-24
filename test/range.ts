@@ -68,7 +68,7 @@ withEachDb(db => describe('key value functionality', () => {
 
   it('supports raw string ranges against the root database', async () => {
     // Regression - https://github.com/josephg/node-foundationdb/pull/39
-    
+
     // This regression requires that we run a naked query without a prefix,
     // which is difficult to do with the current API
     await db.getRoot().doTransaction(async tn => {
@@ -134,7 +134,7 @@ withEachDb(db => describe('key value functionality', () => {
         await db.getRangeAll(
           fdb.keySelector.firstGreaterOrEqual('a'),
           fdb.keySelector.firstGreaterOrEqual('c')))
-      
+
       assert.deepEqual(result, data.slice(0, 2)) // 'a', 'b'.
     })
 
@@ -143,7 +143,7 @@ withEachDb(db => describe('key value functionality', () => {
         await db.getRangeAll(
           fdb.keySelector.firstGreaterThan('a'),
           fdb.keySelector.firstGreaterThan('c')))
-      
+
       assert.deepEqual(result, data.slice(1)) // 'b', 'c'.
     })
   })

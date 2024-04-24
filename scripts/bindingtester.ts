@@ -113,7 +113,7 @@ const makeMachine = (db: Database, initialName: Buffer) => {
   const popBuffer = () => chk<Buffer>(Buffer.isBuffer, 'buf')
   const popStrBuf = () => chk<string | Buffer>(val => typeof val === 'string' || Buffer.isBuffer(val), 'buf|str')
   const popNullableBuf = () => chk<Buffer | null>(val => val == null || Buffer.isBuffer(val), 'buf|null')
-  
+
   const popSelector = async () => {
     const key = await popBuffer()
     const orEqual = await popBool()
@@ -289,7 +289,7 @@ const makeMachine = (db: Database, initialName: Buffer) => {
       const reverse = await popBool()
       const streamingMode = await popInt() as StreamingMode
       // console.log('get range', instrId, beginKey, endKey, limit, reverse, 'mode', streamingMode, oper)
-      
+
       const results = await oper.getRangeAll(
         keySelector.from(beginKey), keySelector.from(endKey),
         {streamingMode, limit, reverse}
@@ -405,7 +405,7 @@ const makeMachine = (db: Database, initialName: Buffer) => {
       lastVersion = (<Transaction>oper).getCommittedVersion()
       pushLiteral('GOT_COMMITTED_VERSION')
     },
-    
+
     async GET_APPROXIMATE_SIZE(oper) {
       await (<Transaction>oper).getApproximateSize()
       pushLiteral('GOT_APPROXIMATE_SIZE')
@@ -471,7 +471,7 @@ const makeMachine = (db: Database, initialName: Buffer) => {
     },
     async ENCODE_FLOAT() {
       const buf = await popBuffer()
-      
+
       // Note the byte representation of nan isn't stable, so even though we can
       // use DataView to read the "right" nan value here and avoid
       // canonicalization, we still can't use it because v8 might change the
@@ -497,7 +497,7 @@ const makeMachine = (db: Database, initialName: Buffer) => {
       dv.setFloat32(0, val.value, false)
       // console.log('bt decode_float', val, Buffer.from(dv.buffer))
       pushValue(Buffer.from(dv.buffer))
-      
+
       // const buf = Buffer.alloc(4)
       // buf.writeFloatBE(val.value, 0)
       // pushValue(buf)
@@ -552,7 +552,7 @@ const makeMachine = (db: Database, initialName: Buffer) => {
       const index1 = await popSmallInt()
       const index2 = await popSmallInt()
       const allowManualPrefixes = await popBool()
-      
+
       const nodeSubspace = dirList[index1] as Subspace | null
       const contentSubspace = dirList[index2] as Subspace | null
       if (verbose) console.log('dcl', index1, index2, allowManualPrefixes)
@@ -578,7 +578,7 @@ const makeMachine = (db: Database, initialName: Buffer) => {
       const path = (await popNValues()) as string[]
       const layer = await popNullableBuf()
       const prefix = (await popValue()) as Buffer | null || undefined
-  
+
       if (verbose) console.log('path', path, layer, prefix)
       // console.log(dirList[dirIdx])
       const dir = await getCurrentDirectoryOrLayer().create(oper, path, layer || undefined, prefix)
@@ -587,7 +587,7 @@ const makeMachine = (db: Database, initialName: Buffer) => {
     async DIRECTORY_OPEN(oper) {
       const path = (await popNValues()) as string[]
       const layer = await popNullableBuf()
-  
+
       const parent = getCurrentDirectoryOrLayer()
       const dir = await parent.open(oper, path, layer || undefined)
       if (verbose) console.log('push new directory', dir.getPath(), 'at index', dirList.length, 'p', parent.getPath(), parent.constructor.name, path)
@@ -641,7 +641,7 @@ const makeMachine = (db: Database, initialName: Buffer) => {
       const path = count === 1
         ? (await popNValues()) as string[]
         : undefined
-      
+
       const children = tuple.pack(await getCurrentDirectoryOrLayer().listAll(oper, path))
       pushValue(children)
     },
@@ -737,7 +737,7 @@ const makeMachine = (db: Database, initialName: Buffer) => {
       }
       if (log) log.write(`${opcode} ${instrId} ${stack.length}\n`)
 
-    
+
       let operand: Transaction | Database = transactions[tnNameKey()]
       if (opcode.endsWith('_SNAPSHOT')) {
         opcode = opcode.slice(0, -'_SNAPSHOT'.length)
@@ -761,7 +761,7 @@ const makeMachine = (db: Database, initialName: Buffer) => {
           // For some reason we absorb all errors here rather than just
           // directory errors. This is probably a bug in the fuzzer, but eh. See
           // seed 3079719521.
-          
+
           // if (!(e instanceof DirectoryError)) throw e
 
           if (([

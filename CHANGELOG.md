@@ -149,4 +149,3 @@ Note that `db.at(['prefix']).set(['key'], 'value')` is equivalent to `db.at(['pr
 - Added support for decoding tuple values with versionstamps. No support for encoding versionstamps yet
 - Removed a bunch of unnecessary files from the bundle
 - Added binding build for FreeBSD
-

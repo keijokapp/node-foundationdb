@@ -183,7 +183,7 @@ withEachDb(db => describe('key value functionality', () => {
       const actualPrefix = keyResult.slice(0, keyPrefix.length)
       const actualStamp = keyResult.slice(keyPrefix.length, keyPrefix.length + 10)
       const actualSuffix = keyResult.slice(keyPrefix.length + 10)
-      
+
       assert.deepStrictEqual(actualPrefix, keyPrefix)
       assert.deepStrictEqual(actualSuffix, keySuffix)
 
@@ -195,7 +195,7 @@ withEachDb(db => describe('key value functionality', () => {
     it('handles setVersionstampedValue', async () => {
       const db_ = db.withValueEncoding(strXF)
       await db_.setVersionstampPrefixedValue('hi there', 'yooo')
-      
+
       const result = await db_.getVersionstampPrefixedValue('hi there')
       assert(result != null)
 
@@ -246,7 +246,7 @@ withEachDb(db => describe('key value functionality', () => {
       const db_ = db.withKeyEncoding(encoders.tuple)
       const key: TupleItem[] = [1,2,3, {type: 'unbound versionstamp'}]
       await db_.setVersionstampedKey(key, 'hi', false)
-      
+
       assert.deepStrictEqual(key, [1,2,3, {type: 'unbound versionstamp'}])
     })
 
@@ -366,17 +366,17 @@ withEachDb(db => describe('key value functionality', () => {
       // Should resolve with false.
       assert.strictEqual(false, await watch.promise)
     })
-    
+
     it('resolves false if the transaction is cancelled', async () => {
       const tn = db.rawCreateTransaction()
       const watch = tn.watch('x')
       tn.rawCancel()
       assert.strictEqual(false, await watch.promise)
     })
-    
+
     it('errors if a real error happens', async () => {
       // This is a regression. And this is a bit of an ugly test
-      
+
       let watch: Watch
       await assertRejects(db.doTn(async tn => {
         tn.setReadVersion(Buffer.alloc(8)) // All zeros. This should be too old
@@ -412,7 +412,7 @@ withEachDb(db => describe('key value functionality', () => {
       })
       assert(called)
     })
-    
+
   })
 
   describe('regression', () => {

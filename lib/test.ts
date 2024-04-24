@@ -1,6 +1,6 @@
 // This isn't part of the distribution. Its just some manual tests to exercise
 // functionality locally.
-// 
+//
 // This file should be removed for 1.0
 
 import * as fdb from './index'
@@ -126,7 +126,7 @@ const versions2 = async () => {
   })).promise
 
   console.log(await stamp)
-  
+
   console.log(await db.get('x'))
 }
 
@@ -137,7 +137,7 @@ const crash = async () => {
 
   const watch = tn1.watch('x')
   watch.promise.then(
-    v => console.log('listener called', v), 
+    v => console.log('listener called', v),
     err => console.error('listener err', err)
   )
 
@@ -157,7 +157,7 @@ const crash = async () => {
 
 //   const watch = tn1.watch('x')
 //   watch.listener.then(
-//     v => console.log('listener called', v), 
+//     v => console.log('listener called', v),
 //     err => console.error('listener err', err)
 //   )
 //   await tn1.rawCommit().catch(e => {})
@@ -173,7 +173,7 @@ const crash = async () => {
 //   })
 //   console.log('ok')
 
-  
+
 // }
 
 // conflictWrites()

@@ -31,7 +31,7 @@ export default class Database<KeyIn = NativeValue, KeyOut = Buffer, ValIn = Nati
   }
 
   // **** Scoping functions
-  
+
   getRoot(): Database {
     return new Database(this._db, root)
   }
@@ -61,7 +61,7 @@ export default class Database<KeyIn = NativeValue, KeyOut = Buffer, ValIn = Nati
   withKeyEncoding<ChildKeyIn, ChildKeyOut>(keyXf: Transformer<any, any> = defaultTransformer): Database<ChildKeyIn, ChildKeyOut, ValIn, ValOut> {
     return new Database(this._db, this.subspace.at(null, keyXf))
   }
-  
+
   withValueEncoding<ChildValIn, ChildValOut>(valXf: Transformer<ChildValIn, ChildValOut>): Database<KeyIn, KeyOut, ChildValIn, ChildValOut> {
     return new Database(this._db, this.subspace.at(null, undefined /* inherit */, valXf))
   }

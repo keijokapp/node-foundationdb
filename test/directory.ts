@@ -56,14 +56,14 @@ withEachDb(db => describe('directory layer', () => {
       assert.strictEqual(keys.size, NUM)
       // console.log(await hca._debugGetInternalState(db))
     })
-    
+
     it('allocates unique values in big transactions', async function() {
       const NUM_TXNS = 10
       const ALLOC_PER_TXN = 100
       this.timeout(6000000)
-          
+
       const hca = new HighContentionAllocator(subspace)
-  
+
       const keys = new Set<number>()
       const work = new Array(NUM_TXNS).fill(null).map(() => (async () => {
         const keyBufs = await db.doTn(async txn => {
@@ -148,7 +148,7 @@ withEachDb(db => describe('directory layer', () => {
     it('can make a partition', async () => {
       const part = await dl.create(db, 'part', 'partition')
       assert(part.isPartition())
-      
+
       const dirA = await part.create(db, 'a')
       await db.at(dirA).set('item', 'val a')
 
