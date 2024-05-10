@@ -5,7 +5,10 @@
 
 import { Transformer, prefixTransformer, defaultTransformer, defaultGetRange } from "./transformer"
 import { NativeValue } from "./native"
-import { asBuf, concat2, startsWith } from "./util"
+import {
+  asBuf, concat2, startsWith, strInc
+} from "./util"
+import { UnboundStamp } from './versionstamp.js'
 
 const EMPTY_BUF = Buffer.alloc(0)
 
@@ -26,7 +29,14 @@ export default class Subspace<KeyIn = NativeValue, KeyOut = Buffer, ValIn = Nati
 
   _bakedKeyXf: Transformer<KeyIn, KeyOut> // This is cached from _prefix + keyXf.
 
-  constructor(rawPrefix: string | Buffer | null, keyXf?: Transformer<KeyIn, KeyOut>, valueXf?: Transformer<ValIn, ValOut>) {
+  _noDefaultPrefix: boolean
+
+  constructor(
+    rawPrefix: string | Buffer | null,
+    keyXf?: Transformer<KeyIn, KeyOut>,
+    valueXf?: Transformer<ValIn, ValOut>,
+    noDefaultPrefix: boolean = false
+  ) {
     this.prefix = rawPrefix != null ? Buffer.from(rawPrefix) : EMPTY_BUF
 
     // Ugh typing this is a mess. Usually this will be fine since if you say new
@@ -35,6 +45,24 @@ export default class Subspace<KeyIn = NativeValue, KeyOut = Buffer, ValIn = Nati
     this.valueXf = valueXf || (defaultTransformer as Transformer<any, any>)
 
     this._bakedKeyXf = rawPrefix ? prefixTransformer(rawPrefix, this.keyXf) : this.keyXf
+
+    this._noDefaultPrefix = noDefaultPrefix
+  }
+
+  /**
+   * Switch to a new mode of handling ranges. By default, the range operations (`getRange` family
+   * and `clearRange`) treat calls with missing end key as operations on prefix ranges. That means
+   * that a call like `tn.at('a').getRange('x')` acts on prefix `ax`, ie key range `[ax, ay)`. In
+   * the new mode, the missing end key defaults to a subspace end (inclusive), ie that call would
+   * act on a range `[ax, b)`. This enabled specifying key ranges not possible before.
+   *
+   * To specifiy range as a prefix, use `StartsWith` version of those methods (eg
+   * `getRangeAllStartsWith`).
+   *
+   * @see Subspace.packRange
+   */
+  noDefaultPrefix() {
+    return new Subspace(this.prefix, this.keyXf, this.valueXf, true)
   }
 
   // All these template parameters make me question my life choices, but this is
@@ -48,21 +76,21 @@ export default class Subspace<KeyIn = NativeValue, KeyOut = Buffer, ValIn = Nati
   // ***
   at(prefix: KeyIn | null, keyXf: Transformer<any, any> = this.keyXf, valueXf: Transformer<any, any> = this.valueXf) {
     const _prefix = prefix == null ? null : this.keyXf.pack(prefix)
-    return new Subspace(concatPrefix(this.prefix, _prefix), keyXf, valueXf)
+    return new Subspace(concatPrefix(this.prefix, _prefix), keyXf, valueXf, this._noDefaultPrefix)
   }
 
   /** At a child prefix thats specified without reference to the key transformer */
   atRaw(prefix: Buffer) {
-    return new Subspace(concatPrefix(this.prefix, prefix), this.keyXf, this.valueXf)
+    return new Subspace(concatPrefix(this.prefix, prefix), this.keyXf, this.valueXf, this._noDefaultPrefix)
   }
 
 
   withKeyEncoding<CKI, CKO>(keyXf: Transformer<CKI, CKO>): Subspace<CKI, CKO, ValIn, ValOut> {
-    return new Subspace(this.prefix, keyXf, this.valueXf)
+    return new Subspace(this.prefix, keyXf, this.valueXf, this._noDefaultPrefix)
   }
   
   withValueEncoding<CVI, CVO>(valXf: Transformer<CVI, CVO>): Subspace<KeyIn, KeyOut, CVI, CVO> {
-    return new Subspace(this.prefix, this.keyXf, valXf)
+    return new Subspace(this.prefix, this.keyXf, valXf, this._noDefaultPrefix)
   }
 
   // GetSubspace implementation
@@ -75,17 +103,62 @@ export default class Subspace<KeyIn = NativeValue, KeyOut = Buffer, ValIn = Nati
   unpackKey(key: Buffer): KeyOut {
     return this._bakedKeyXf.unpack(key)
   }
+  packKeyUnboundVersionstamp(key: KeyIn): UnboundStamp {
+    if (!this._bakedKeyXf.packUnboundVersionstamp) {
+      throw TypeError('Value encoding does not support unbound versionstamps. Use setVersionstampPrefixedValue instead')
+    }
+
+    return this._bakedKeyXf.packUnboundVersionstamp(key)
+  }
   packValue(val: ValIn): NativeValue {
     return this.valueXf.pack(val)
   }
   unpackValue(val: Buffer): ValOut {
     return this.valueXf.unpack(val)
   }
+  packValueUnboundVersionstamp(value: ValIn): UnboundStamp {
+    if (!this.valueXf.packUnboundVersionstamp) {
+      throw TypeError('Value encoding does not support unbound versionstamps. Use setVersionstampPrefixedValue instead')
+    }
 
-  packRange(prefix: KeyIn): {begin: NativeValue, end: NativeValue} {
-    // if (this._bakedKeyXf.range) return this._bakedKeyXf.range(prefix)
-    // else return defaultGetRange(prefix, this._bakedKeyXf)
-    return (this._bakedKeyXf.range || defaultGetRange)(prefix, this._bakedKeyXf)
+    return this.valueXf.packUnboundVersionstamp(value)
+  }
+
+  /**
+   * Encodes a range specified by `start`/`end` pair using configured key encoder.
+   *
+   * @param start Start of the key range. If undefined, the start of the subspace is assumed.
+   * @param end End of the key range. If undefined, the end of the subspace is assumed, unless
+   * `noDefaultPrefix` flag is set or enabled for this subspace, in which case, start key is treated
+   * as a prefix.
+   * @param noDefaultPrefix Disable treating start key as a prefix if end key is not specified.
+   * @returns Encoded range as a `{ begin, end }` record.
+   */
+  packRange(
+    start?: KeyIn,
+    end?: KeyIn,
+    noDefaultPrefix: boolean = false
+  ): {begin: NativeValue, end: NativeValue} {
+    if (start !== undefined && end === undefined && !this._noDefaultPrefix && !noDefaultPrefix) {
+      return this.packRangeStartsWith(start)
+    }
+
+    return {
+      begin: start !== undefined ? this._bakedKeyXf.pack(start) : this.prefix,
+      end: end !== undefined ? this._bakedKeyXf.pack(end) : strInc(this.prefix)
+    }
+  }
+
+  /**
+   * Encodes a range specified by the prefix using configured key encoder.
+   *
+   * @param prefix Start of the key key range. If undefined, the start of the subspace is assumed.
+   * @returns Encoded range as a `{ begin, end }` record.
+   */
+  packRangeStartsWith(prefix: KeyIn): {begin: NativeValue, end: NativeValue} {
+    const encodePrefix = this._bakedKeyXf.range ?? defaultGetRange
+
+    return encodePrefix(prefix, this._bakedKeyXf)
   }
 
   contains(key: NativeValue) {
