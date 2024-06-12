@@ -70,6 +70,8 @@ interface TxnCtx {
   // the versionstamp from the txn and bake it back into the tuple (or
   // whatever) after the transaction commits.
   toBake: null | BakeItem<any>[]
+
+  invalid?: true
 }
 
 /**
@@ -152,6 +154,18 @@ export default class Transaction<KeyIn = NativeValue, KeyOut = Buffer, ValIn = N
   }
 
   /** @internal */
+  _assertValid() {
+    if (this._ctx.invalid) {
+      throw new Error('Transaction is invalid')
+    }
+  }
+
+  /** @internal */
+  _invalidate() {
+    this._ctx.invalid = true
+  }
+
+  /** @internal */
   async _exec<T>(body: (tn: Transaction<KeyIn, KeyOut, ValIn, ValOut>) => Promise<T>): Promise<T> {
     const result = await body(this)
 
@@ -180,6 +194,8 @@ export default class Transaction<KeyIn = NativeValue, KeyOut = Buffer, ValIn = N
    * of the transaction object (eg in other scopes or from `txn.snapshot()`).
    */
   setOption(opt: TransactionOptionCode, value?: number | string | Buffer) {
+    this._assertValid()
+
     // TODO: Check type of passed option is valid.
     this._tn.setOption(opt, (value == null) ? null : value)
   }
@@ -215,18 +231,28 @@ export default class Transaction<KeyIn = NativeValue, KeyOut = Buffer, ValIn = N
   /** @deprecated - Use promises API instead. */
   rawCommit(cb: Callback<void>): void
   rawCommit(cb?: Callback<void>) {
+    this._assertValid()
+
     return cb
       ? this._tn.commit(cb)
       : this._tn.commit()
   }
 
-  rawReset() { this._tn.reset() }
-  rawCancel() { this._tn.cancel() }
+  rawReset() {
+    this._assertValid()
+    this._tn.reset()
+  }
+  rawCancel() {
+    this._assertValid()
+    this._tn.cancel()
+  }
 
   rawOnError(code: number): Promise<void>
   /** @deprecated - Use promises API instead. */
   rawOnError(code: number, cb: Callback<void>): void
   rawOnError(code: number, cb?: Callback<void>) {
+    this._assertValid()
+
     return cb
       ? this._tn.onError(code, cb)
       : this._tn.onError(code)
@@ -242,6 +268,8 @@ export default class Transaction<KeyIn = NativeValue, KeyOut = Buffer, ValIn = N
   /** @deprecated - Use promises API instead. */
   get(key: KeyIn, cb: Callback<ValOut | undefined>): void
   get(key: KeyIn, cb?: Callback<ValOut | undefined>) {
+    this._assertValid()
+
     const keyBuf = this._keyEncoding.pack(key)
     return cb
       ? this._tn.get(keyBuf, this.isSnapshot, (err, val) => {
@@ -255,6 +283,8 @@ export default class Transaction<KeyIn = NativeValue, KeyOut = Buffer, ValIn = N
    * tn.get() !== undefined.
    */
   exists(key: KeyIn): Promise<boolean> {
+    this._assertValid()
+
     const keyBuf = this._keyEncoding.pack(key)
     return this._tn.get(keyBuf, this.isSnapshot).then(val => val != undefined)
   }
@@ -277,6 +307,8 @@ export default class Transaction<KeyIn = NativeValue, KeyOut = Buffer, ValIn = N
    *   and return keys in the system portion (starting with '\xff').
    */
   getKey(_sel: KeySelector<KeyIn> | KeyIn): Promise<KeyOut | undefined> {
+    this._assertValid()
+
     const sel = keySelector.from(_sel)
     return this._tn.getKey(this._keyEncoding.pack(sel.key), sel.orEqual, sel.offset, this.isSnapshot)
       .then(key => (
@@ -288,11 +320,15 @@ export default class Transaction<KeyIn = NativeValue, KeyOut = Buffer, ValIn = N
 
   /** Set the specified key/value pair in the database */
   set(key: KeyIn, val: ValIn) {
+    this._assertValid()
+
     this._tn.set(this._keyEncoding.pack(key), this._valueEncoding.pack(val))
   }
 
   /** Remove the value for the specified key */
   clear(key: KeyIn) {
+    this._assertValid()
+
     const pack = this._keyEncoding.pack(key)
     this._tn.clear(pack)
   }
@@ -316,6 +352,8 @@ export default class Transaction<KeyIn = NativeValue, KeyOut = Buffer, ValIn = N
       end: KeySelector<NativeValue> | null,  // If not specified, start is used as a prefix.
       limit: number, targetBytes: number, streamingMode: StreamingMode,
       iter: number, reverse: boolean): Promise<KVList<Buffer, Buffer>> {
+    this._assertValid()
+
     const _end = end != null ? end : keySelector.firstGreaterOrEqual(strInc(start.key))
     return this._tn.getRange(
       start.key, start.orEqual, start.offset,
@@ -335,6 +373,8 @@ export default class Transaction<KeyIn = NativeValue, KeyOut = Buffer, ValIn = N
   }
 
   getEstimatedRangeSizeBytes(start: KeyIn, end: KeyIn): Promise<number> {
+    this._assertValid()
+
     return this._tn.getEstimatedRangeSizeBytes(
       this._keyEncoding.pack(start),
       this._keyEncoding.pack(end)
@@ -342,6 +382,8 @@ export default class Transaction<KeyIn = NativeValue, KeyOut = Buffer, ValIn = N
   }
 
   getRangeSplitPoints(start: KeyIn, end: KeyIn, chunkSize: number): Promise<KeyOut[]> {
+    this._assertValid()
+
     return this._tn.getRangeSplitPoints(
       this._keyEncoding.pack(start),
       this._keyEncoding.pack(end),
@@ -503,6 +545,8 @@ export default class Transaction<KeyIn = NativeValue, KeyOut = Buffer, ValIn = N
    * *start* as a prefix.
    */
   clearRange(_start: KeyIn, _end?: KeyIn) {
+    this._assertValid()
+
     let start: NativeValue, end: NativeValue
     // const _start = this._keyEncoding.pack(start)
 
@@ -524,6 +568,8 @@ export default class Transaction<KeyIn = NativeValue, KeyOut = Buffer, ValIn = N
   }
 
   watch(key: KeyIn, opts?: WatchOptions): Watch {
+    this._assertValid()
+
     const throwAll = opts && opts.throwAllErrors
     const watch = this._tn.watch(this._keyEncoding.pack(key), !throwAll)
     // Suppress the global unhandledRejection handler when a watch errors
@@ -532,33 +578,51 @@ export default class Transaction<KeyIn = NativeValue, KeyOut = Buffer, ValIn = N
   }
 
   addReadConflictRange(start: KeyIn, end: KeyIn) {
+    this._assertValid()
+
     this._tn.addReadConflictRange(this._keyEncoding.pack(start), this._keyEncoding.pack(end))
   }
   addReadConflictKey(key: KeyIn) {
+    this._assertValid()
+
     const keyBuf = this._keyEncoding.pack(key)
     this._tn.addReadConflictRange(keyBuf, strNext(keyBuf))
   }
 
   addWriteConflictRange(start: KeyIn, end: KeyIn) {
+    this._assertValid()
+
     this._tn.addWriteConflictRange(this._keyEncoding.pack(start), this._keyEncoding.pack(end))
   }
   addWriteConflictKey(key: KeyIn) {
+    this._assertValid()
+
     const keyBuf = this._keyEncoding.pack(key)
     this._tn.addWriteConflictRange(keyBuf, strNext(keyBuf))
   }
 
   // version must be 8 bytes
-  setReadVersion(v: Version) { this._tn.setReadVersion(v) }
+  setReadVersion(v: Version) {
+    this._assertValid()
+
+    this._tn.setReadVersion(v)
+  }
 
   /** Get the database version used to perform reads in this transaction. */
   getReadVersion(): Promise<Version>
   /** @deprecated - Use promises API instead. */
   getReadVersion(cb: Callback<Version>): void
   getReadVersion(cb?: Callback<Version>) {
+    this._assertValid()
+
     return cb ? this._tn.getReadVersion(cb) : this._tn.getReadVersion()
   }
 
-  getCommittedVersion() { return this._tn.getCommittedVersion() }
+  getCommittedVersion() {
+    this._assertValid()
+
+    return this._tn.getCommittedVersion()
+  }
 
   // Note: This promise can't be directly returned via the return value of a
   // transaction.
@@ -566,6 +630,8 @@ export default class Transaction<KeyIn = NativeValue, KeyOut = Buffer, ValIn = N
   /** @deprecated - Use promises API instead. */
   getVersionstamp(cb: Callback<Buffer>): void
   getVersionstamp(cb?: Callback<Buffer>) {
+    this._assertValid()
+
     if (cb) return this._tn.getVersionstamp(cb)
     else {
       // This one is surprisingly tricky:
@@ -584,18 +650,23 @@ export default class Transaction<KeyIn = NativeValue, KeyOut = Buffer, ValIn = N
   }
 
   getAddressesForKey(key: KeyIn): string[] {
+    this._assertValid()
+
     return this._tn.getAddressesForKey(this._keyEncoding.pack(key))
   }
 
   // **** Atomic operations
 
   atomicOpNative(opType: MutationType, key: NativeValue, oper: NativeValue) {
+    this._assertValid()
     this._tn.atomicOp(opType, key, oper)
   }
   atomicOpKB(opType: MutationType, key: KeyIn, oper: Buffer) {
+    this._assertValid()
     this._tn.atomicOp(opType, this._keyEncoding.pack(key), oper)
   }
   atomicOp(opType: MutationType, key: KeyIn, oper: ValIn) {
+    this._assertValid()
     this._tn.atomicOp(opType, this._keyEncoding.pack(key), this._valueEncoding.pack(oper))
   }
 
@@ -727,6 +798,8 @@ export default class Transaction<KeyIn = NativeValue, KeyOut = Buffer, ValIn = N
    * using setVersionstampedValue with tuples, just call get().
    */
   async getVersionstampPrefixedValue(key: KeyIn): Promise<{stamp: Buffer, value?: ValOut} | null> {
+    this._assertValid()
+
     const val = await this._tn.get(this._keyEncoding.pack(key), this.isSnapshot)
 
     if (val == null) {
@@ -751,6 +824,8 @@ export default class Transaction<KeyIn = NativeValue, KeyOut = Buffer, ValIn = N
   }
 
   getApproximateSize() {
+    this._assertValid()
+
     return this._tn.getApproximateSize()
   }
 
