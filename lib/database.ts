@@ -1,3 +1,4 @@
+import FDBError from './error'
 import * as fdb from './native'
 import Transaction, { RangeOptions, Watch } from './transaction'
 import {Transformer} from './transformer'
@@ -9,6 +10,7 @@ import {DatabaseOptions,
   TransactionOptions,
   databaseOptionData,
   MutationType,
+  transactionOptionData,
 } from './opts.g'
 
 export type WatchWithValue<Value> = Watch & { value: Value | undefined }
@@ -89,7 +91,27 @@ export default class Database<KeyIn = NativeValue, KeyOut = Buffer, ValIn = Nati
 
   // This is the API you want to use for non-trivial transactions.
   async doTn<T>(body: (tn: Transaction<KeyIn, KeyOut, ValIn, ValOut>) => Promise<T>, opts?: TransactionOptions): Promise<T> {
-    return this.rawCreateTransaction(opts)._exec(body)
+    const tn = this._db.createTransaction();
+
+    if (opts) eachOption(transactionOptionData, opts, (code, val) => tn.setOption(code, val))
+
+    // Logic described here:
+    // https://apple.github.io/foundationdb/api-c.html#c.fdb_transaction_on_error
+    do {
+      const transaction = new Transaction<KeyIn, KeyOut, ValIn, ValOut>(tn, false, this.subspace)
+
+      try {
+        return await transaction._exec(body);
+      } catch (err) {
+        // See if we can retry the transaction
+        if (err instanceof FDBError) {
+          await transaction.rawOnError(err.code) // If this throws, punt error to caller.
+          // If that passed, loop.
+        } else {
+          throw err
+        }
+      }
+    } while (true)
   }
   // Alias for db.doTn.
   async doTransaction<T>(body: (tn: Transaction<KeyIn, KeyOut, ValIn, ValOut>) => Promise<T>, opts?: TransactionOptions): Promise<T> {
@@ -108,7 +130,11 @@ export default class Database<KeyIn = NativeValue, KeyOut = Buffer, ValIn = Nati
 
   // Infrequently used. You probably want to use doTransaction instead.
   rawCreateTransaction(opts?: TransactionOptions) {
-    return new Transaction<KeyIn, KeyOut, ValIn, ValOut>(this._db.createTransaction(), false, this.subspace, opts)
+    const tn = this._db.createTransaction();
+
+    if (opts) eachOption(transactionOptionData, opts, (code, val) => tn.setOption(code, val))
+
+    return new Transaction<KeyIn, KeyOut, ValIn, ValOut>(tn, false, this.subspace)
   }
 
   get(key: KeyIn): Promise<ValOut | undefined> {
