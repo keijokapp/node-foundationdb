@@ -116,8 +116,8 @@ interface TxnCtx {
  * apply a value transformer this will change.
  */
 export default class Transaction<KeyIn = NativeValue, KeyOut = Buffer, ValIn = NativeValue, ValOut = Buffer> {
-  /** @internal */ _tn: NativeTransaction
-  
+  /** @internal */ private _tn: NativeTransaction
+
   isSnapshot: boolean
   subspace: Subspace<KeyIn, KeyOut, ValIn, ValOut>
 
@@ -151,6 +151,10 @@ export default class Transaction<KeyIn = NativeValue, KeyOut = Buffer, ValIn = N
       nextCode: 0,
       toBake: null
     }
+  }
+
+  get context(): object {
+    return this._ctx;
   }
 
   /** @internal */
