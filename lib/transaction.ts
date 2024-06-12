@@ -1,4 +1,3 @@
-import FDBError from './error'
 import {
   Watch,
   NativeTransaction,
@@ -12,11 +11,8 @@ import {
   asBuf
 } from './util'
 import keySelector, {KeySelector} from './keySelector'
-import {eachOption} from './opts'
 import {
-  TransactionOptions,
   TransactionOptionCode,
-  transactionOptionData,
   StreamingMode,
   MutationType
 } from './opts.g'
@@ -139,7 +135,7 @@ export default class Transaction<KeyIn = NativeValue, KeyOut = Buffer, ValIn = N
   constructor(tn: NativeTransaction, snapshot: boolean,
       subspace: Subspace<KeyIn, KeyOut, ValIn, ValOut>,
       // keyEncoding: Transformer<KeyIn, KeyOut>, valueEncoding: Transformer<ValIn, ValOut>,
-      opts?: TransactionOptions, ctx?: TxnCtx) {
+      ctx?: TxnCtx) {
     this._tn = tn
 
     this.isSnapshot = snapshot
@@ -148,7 +144,6 @@ export default class Transaction<KeyIn = NativeValue, KeyOut = Buffer, ValIn = N
     this._valueEncoding = subspace.valueXf
 
     // this._root = root || this
-    if (opts) eachOption(transactionOptionData, opts, (code, val) => tn.setOption(code, val))
 
     this._ctx = ctx ? ctx : {
       nextCode: 0,
@@ -156,42 +151,23 @@ export default class Transaction<KeyIn = NativeValue, KeyOut = Buffer, ValIn = N
     }
   }
 
-  // Internal method to actually run a transaction retry loop. Do not call
-  // this directly - instead use Database.doTn().
-
   /** @internal */
-  async _exec<T>(body: (tn: Transaction<KeyIn, KeyOut, ValIn, ValOut>) => Promise<T>, opts?: TransactionOptions): Promise<T> {
-    // Logic described here:
-    // https://apple.github.io/foundationdb/api-c.html#c.fdb_transaction_on_error
-    do {
-      try {
-        const result = await body(this)
+  async _exec<T>(body: (tn: Transaction<KeyIn, KeyOut, ValIn, ValOut>) => Promise<T>): Promise<T> {
+    const result = await body(this)
 
-        const stampPromise = (this._ctx.toBake && this._ctx.toBake.length)
-          ? this.getVersionstamp() : null
+    const stampPromise = (this._ctx.toBake && this._ctx.toBake.length)
+      ? this.getVersionstamp() : null
 
-        await this.rawCommit()
+    await this.rawCommit()
 
-        if (stampPromise) {
-          const stamp = await stampPromise.promise
+    if (stampPromise) {
+      const stamp = await stampPromise.promise
 
-          this._ctx.toBake!.forEach(({item, transformer, code}) => (
-            transformer.bakeVersionstamp!(item, stamp, code))
-          )
-        }
-        return result // Ok, success.
-      } catch (err) {
-        // See if we can retry the transaction
-        if (err instanceof FDBError) {
-          await this.rawOnError(err.code) // If this throws, punt error to caller.
-          // If that passed, loop.
-        } else throw err
-      }
-
-      // Reset our local state that will have been filled in by calling the body.
-      this._ctx.nextCode = 0
-      if (this._ctx.toBake) this._ctx.toBake.length = 0
-    } while (true)
+      this._ctx.toBake!.forEach(({item, transformer, code}) => (
+        transformer.bakeVersionstamp!(item, stamp, code))
+      )
+    }
+    return result // Ok, success.
   }
 
   /**
@@ -212,14 +188,14 @@ export default class Transaction<KeyIn = NativeValue, KeyOut = Buffer, ValIn = N
    * Returns a shallow copy of the transaction object which does snapshot reads.
    */
   snapshot(): Transaction<KeyIn, KeyOut, ValIn, ValOut> {
-    return new Transaction(this._tn, true, this.subspace, undefined, this._ctx)
+    return new Transaction(this._tn, true, this.subspace, this._ctx)
   }
 
   /**
    * Create a shallow copy of the transaction in the specified subspace (or database, transaction, or directory).
   */
   at<CKI, CKO, CVI, CVO>(hasSubspace: GetSubspace<CKI, CKO, CVI, CVO>): Transaction<CKI, CKO, CVI, CVO> {
-    return new Transaction(this._tn, this.isSnapshot, hasSubspace.getSubspace(), undefined, this._ctx)
+    return new Transaction(this._tn, this.isSnapshot, hasSubspace.getSubspace(), this._ctx)
   }
 
   /** @deprecated - use transaction.at(db) instead. */
