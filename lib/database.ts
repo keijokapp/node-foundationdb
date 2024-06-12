@@ -74,17 +74,21 @@ export default class Database<KeyIn = NativeValue, KeyOut = Buffer, ValIn = Nati
 
     if (opts) eachOption(transactionOptionData, opts, (code, val) => tn.setOption(code, val))
 
+    let transaction;
+
     // Logic described here:
     // https://apple.github.io/foundationdb/api-c.html#c.fdb_transaction_on_error
     do {
-      const transaction = new Transaction<KeyIn, KeyOut, ValIn, ValOut>(tn, false, this.subspace)
+      transaction?._invalidate();
+
+      transaction = new Transaction<KeyIn, KeyOut, ValIn, ValOut>(tn, false, this.subspace)
 
       try {
         return await transaction._exec(body);
       } catch (err) {
         // See if we can retry the transaction
         if (err instanceof FDBError) {
-          await transaction.rawOnError(err.code) // If this throws, punt error to caller.
+          await tn.onError(err.code) // If this throws, punt error to caller.
           // If that passed, loop.
         } else {
           throw err
