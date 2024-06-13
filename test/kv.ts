@@ -12,14 +12,6 @@ import { Transformer } from '../lib/transformer'
 
 process.on('unhandledRejection', err => { throw err })
 
-// Unfortunately assert.rejects doesn't work properly in node 8. For now we'll use a shim.
-const assertRejects = async (p: Promise<any>) => {
-  try {
-    await p
-    throw Error('Promise resolved instead of erroring')
-  } catch (e) {}
-}
-
 const codeBuf = (code: number) => {
   const b = Buffer.alloc(2)
   b.writeUInt16BE(code, 0)
@@ -378,13 +370,13 @@ withEachDb(db => describe('key value functionality', () => {
       // This is a regression. And this is a bit of an ugly test
 
       let watch: Watch
-      await assertRejects(db.doTn(async tn => {
+      await assert.rejects(db.doTn(async tn => {
         tn.setReadVersion(Buffer.alloc(8)) // All zeros. This should be too old
         watch = tn.watch('x')
         await tn.get('x') // this will fail and throw.
       }))
 
-      await assertRejects(watch!.promise)
+      await assert.rejects(watch!.promise)
     })
   })
 
