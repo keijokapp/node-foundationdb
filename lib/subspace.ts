@@ -6,11 +6,9 @@
 import { Transformer, prefixTransformer, defaultTransformer, defaultGetRange } from "./transformer"
 import { NativeValue } from "./native"
 import {
-  asBuf, concat2, startsWith, strInc
+  asBuf, concat2, emptyBuffer, startsWith, strInc
 } from "./util"
 import { UnboundStamp } from './versionstamp.js'
-
-const EMPTY_BUF = Buffer.alloc(0)
 
 const concatPrefix = (p1: Buffer, p2: string | Buffer | null) => (
   p2 == null ? p1
@@ -30,14 +28,14 @@ export default class Subspace<KeyIn = NativeValue, KeyOut = Buffer, ValIn = Nati
   _bakedKeyXf: Transformer<KeyIn, KeyOut> // This is cached from _prefix + keyXf.
 
   constructor(rawPrefix: string | Buffer | null, keyXf?: Transformer<KeyIn, KeyOut>, valueXf?: Transformer<ValIn, ValOut>) {
-    this.prefix = rawPrefix != null ? Buffer.from(rawPrefix) : EMPTY_BUF
+    this.prefix = rawPrefix?.length ? asBuf(rawPrefix) : emptyBuffer
 
     // Ugh typing this is a mess. Usually this will be fine since if you say new
     // Subspace() you'll get the default values for KI/KO/VI/VO.
     this.keyXf = keyXf || (defaultTransformer as Transformer<any, any>)
     this.valueXf = valueXf || (defaultTransformer as Transformer<any, any>)
 
-    this._bakedKeyXf = rawPrefix ? prefixTransformer(rawPrefix, this.keyXf) : this.keyXf
+    this._bakedKeyXf = this.prefix.length ? prefixTransformer(this.prefix, this.keyXf) : this.keyXf
   }
 
   // All these template parameters make me question my life choices, but this is

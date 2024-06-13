@@ -2,7 +2,7 @@ import Transaction from "./transaction";
 import { Database, tuple, TupleItem, util } from ".";
 import { Transformer, defaultTransformer } from "./transformer";
 import { TransactionOptionCode } from "./opts.g";
-import { concat2, startsWith, strInc, asBuf } from "./util";
+import { concat2, startsWith, strInc, asBuf, emptyBuffer } from "./util";
 import Subspace, { root } from "./subspace";
 import { inspect } from "util";
 import { NativeValue } from "./native";
@@ -38,8 +38,6 @@ type TupleIn = undefined | TupleItem | TupleItem[]
 /** Node subspaces have tuple keys like [SUBDIRS, (bytes)] and [b'layer']. */
 type NodeSubspace = Subspace<TupleIn, TupleItem[], NativeValue, Buffer>
 
-const BUF_EMPTY = Buffer.alloc(0)
-
 const arrStartsWith = <T>(arr: T[], prefix: T[]): boolean => {
   if (arr.length < prefix.length) return false
   for (let i = 0; i < prefix.length; i++) {
@@ -65,7 +63,7 @@ const doTxn = <KeyIn, KeyOut, ValIn, ValOut, T>(
 
 const counterEncoding: Transformer<bigint, bigint> = {
   pack(val) {
-    const b = Buffer.alloc(8)
+    const b = Buffer.allocUnsafe(8)
 
     b.writeBigUInt64LE(val)
 
@@ -77,7 +75,7 @@ const counterEncoding: Transformer<bigint, bigint> = {
 }
 
 const voidEncoding: Transformer<void, void> = {
-  pack(val) { return BUF_EMPTY },
+  pack(val) { return emptyBuffer },
   unpack(buf) { return null }
 }
 
@@ -88,7 +86,7 @@ type Version = [number, number, number]
 // this.
 const versionEncoder: Transformer<Version, Version> = {
   pack(ver) {
-    const buf = Buffer.alloc(12)
+    const buf = Buffer.allocUnsafe(12)
     buf.writeUInt32LE(ver[0], 0)
     buf.writeUInt32LE(ver[1], 4)
     buf.writeUInt32LE(ver[2], 8)
@@ -143,7 +141,7 @@ async function synchronized(tn: TxnAny, block: () => Promise<void>) {
 export class HighContentionAllocator {
   // db: Database<any, any, any, any>
   counters: Subspace<TupleIn, TupleItem[], bigint, bigint>
-  recent: Subspace<TupleIn, TupleItem[], void, void> // The value here will always be BUF_EMPTY.
+  recent: Subspace<TupleIn, TupleItem[], void, void>
 
   constructor(subspace: SubspaceAny) {
     // this.db = db.withKeyEncoding(tuple) //.at([counters, recent])
@@ -316,7 +314,7 @@ class Node {
       // What should the implicit layer be? The other bindings leave it as '',
       // even though its kinda a directory partition, so it probably should be
       // 'partition'.
-      if (txn) this.layer = (await txn.at(this.subspace!).get(LAYER_KEY)) || BUF_EMPTY
+      if (txn) this.layer = (await txn.at(this.subspace!).get(LAYER_KEY)) || emptyBuffer
       else throw new DirectoryError('Layer has not been read')
     }
 
@@ -519,7 +517,7 @@ export class DirectoryLayer {
       || new Subspace(opts.nodePrefix == null ? DEFAULT_NODE_PREFIX : opts.nodePrefix, tuple, defaultTransformer)
 
     this._contentSubspace = opts.contentSubspace?.withKeyEncoding(tuple)
-      || new Subspace(opts.contentPrefix == null ? BUF_EMPTY : opts.contentPrefix, tuple, defaultTransformer)
+      || new Subspace(opts.contentPrefix == null ? emptyBuffer : opts.contentPrefix, tuple, defaultTransformer)
 
     this._allowManualPrefixes = opts.allowManualPrefixes || false
 
@@ -545,7 +543,7 @@ export class DirectoryLayer {
     return this._createOrOpenInternal(txnOrDb, path, layer)
   }
 
-  private async _createOrOpenInternal<KeyIn, KeyOut, ValIn, ValOut>(txnOrDb: TxnAny | DbAny, _path: PathIn, layer: NativeValue = BUF_EMPTY, reqPrefix?: Buffer, allowCreate: boolean = true, allowOpen: boolean = true): Promise<Directory<KeyIn, KeyOut, ValIn, ValOut>> {
+  private async _createOrOpenInternal<KeyIn, KeyOut, ValIn, ValOut>(txnOrDb: TxnAny | DbAny, _path: PathIn, layer: NativeValue = emptyBuffer, reqPrefix?: Buffer, allowCreate: boolean = true, allowOpen: boolean = true): Promise<Directory<KeyIn, KeyOut, ValIn, ValOut>> {
     const path = normalize_path(_path)
     // For layers, an empty string is treated the same as a missing layer property.
     const layerBuf = asBuf(layer)
@@ -629,7 +627,7 @@ export class DirectoryLayer {
    * specified and a different layer was specified when the directory was
    * created.
    */
-  open<KeyIn, KeyOut, ValIn, ValOut>(txnOrDb: DbOrTxn<KeyIn, KeyOut, ValIn, ValOut>, path: PathIn, layer: 'partition' | NativeValue = BUF_EMPTY): Promise<Directory<KeyIn, KeyOut, ValIn, ValOut>> {
+  open<KeyIn, KeyOut, ValIn, ValOut>(txnOrDb: DbOrTxn<KeyIn, KeyOut, ValIn, ValOut>, path: PathIn, layer: 'partition' | NativeValue = emptyBuffer): Promise<Directory<KeyIn, KeyOut, ValIn, ValOut>> {
     return this._createOrOpenInternal(txnOrDb, path, layer, undefined, false, true)
   }
 
@@ -645,7 +643,7 @@ export class DirectoryLayer {
    * If layer is specified, it is recorded with the directory and will be
    * checked by future calls to open.
    */
-  create<KeyIn, KeyOut, ValIn, ValOut>(txnOrDb: DbOrTxn<KeyIn, KeyOut, ValIn, ValOut>, path: PathIn, layer: 'partition' | NativeValue = BUF_EMPTY, prefix?: Buffer): Promise<Directory<KeyIn, KeyOut, ValIn, ValOut>> {
+  create<KeyIn, KeyOut, ValIn, ValOut>(txnOrDb: DbOrTxn<KeyIn, KeyOut, ValIn, ValOut>, path: PathIn, layer: 'partition' | NativeValue = emptyBuffer, prefix?: Buffer): Promise<Directory<KeyIn, KeyOut, ValIn, ValOut>> {
     return this._createOrOpenInternal(txnOrDb, path, layer, prefix, true, false)
   }
 
@@ -868,7 +866,7 @@ export class DirectoryLayer {
     return node
   }
 
-  _contentsOfNode<KeyIn, KeyOut, ValIn, ValOut>(nodeSubspace: NodeSubspace, path: Path, layer: NativeValue = BUF_EMPTY, keyXf: Transformer<KeyIn, KeyOut>, valueXf: Transformer<ValIn, ValOut>): Directory<KeyIn, KeyOut, ValIn, ValOut> {
+  _contentsOfNode<KeyIn, KeyOut, ValIn, ValOut>(nodeSubspace: NodeSubspace, path: Path, layer: NativeValue = emptyBuffer, keyXf: Transformer<KeyIn, KeyOut>, valueXf: Transformer<ValIn, ValOut>): Directory<KeyIn, KeyOut, ValIn, ValOut> {
     // This is some black magic. We have a reference to the node's subspace, but
     // what we really want is the prefix. So we want to do the inverse to
     // this._nodeSubspace.at(...).
@@ -925,7 +923,7 @@ export class DirectoryLayer {
     }
 
     // Clear content
-    txn.at(this.contentSubspaceForNode(node)).clearRangeStartsWith(BUF_EMPTY)
+    txn.at(this.contentSubspaceForNode(node)).clearRangeStartsWith(emptyBuffer)
 
     // Clear metadata
     txn.at(node).clearRangeStartsWith(undefined)

@@ -13,7 +13,7 @@ import { Transformer } from '../lib/transformer'
 process.on('unhandledRejection', err => { throw err })
 
 const codeBuf = (code: number) => {
-  const b = Buffer.alloc(2)
+  const b = Buffer.allocUnsafe(2)
   b.writeUInt16BE(code, 0)
   return b
 }
@@ -200,7 +200,7 @@ withEachDb(db => describe('key value functionality', () => {
       const db_ = db.withKeyEncoding(encoders.tuple)
       await db_.set([1,2,3], 'hi there')
       const result = await db_.get([1,2,3])
-      assert.strictEqual(result!.toString('utf8'), 'hi there')
+      assert.strictEqual(result!.toString(), 'hi there')
     })
 
     it('commits a tuple with unbound key versionstamps and bakes the vs and code', async () => {

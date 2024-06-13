@@ -9,7 +9,7 @@ export const prefix = '__test_data__/'
 // Using big endian numbers because they're lexographically sorted correctly.
 export const bufToNum = (b: Buffer | null, def: number = 0) => b ? b.readInt32BE(0) : def
 export const numToBuf = (n: number) => {
-  const b = Buffer.alloc(4)
+  const b = Buffer.allocUnsafe(4)
   b.writeInt32BE(n, 0)
   return b
 }
@@ -21,7 +21,7 @@ export const numXF = {
 
 export const strXF = {
   pack(s: string) {return s},
-  unpack(b: Buffer) {return b.toString('utf8')}
+  unpack(b: Buffer) {return b.toString()}
 }
 
 // Only testing with one API version for now.
