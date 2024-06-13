@@ -59,9 +59,6 @@ export type WatchOptions = {
   throwAllErrors?: undefined | boolean
 }
 
-// Polyfill for node < 10.0 to make asyncIterators work (getRange / getRangeBatch).
-if ((<any>Symbol).asyncIterator == null) (<any>Symbol).asyncIterator = Symbol.for("Symbol.asyncIterator")
-
 const doNothing = () => {}
 
 type BakeItem<T> = {item: T, transformer: Transformer<T, any>, code: Buffer | null}

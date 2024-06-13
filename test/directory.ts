@@ -5,7 +5,7 @@ import {
   numXF,
   withEachDb,
 } from './util'
-import {counterEncoding, HighContentionAllocator} from '../lib/directory'
+import {HighContentionAllocator} from '../lib/directory'
 import { startsWith } from '../lib/util'
 import { defaultTransformer } from '../lib/transformer'
 
