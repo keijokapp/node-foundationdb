@@ -7,7 +7,7 @@ import { Transformer, prefixTransformer, defaultTransformer, defaultGetRange } f
 import { NativeValue } from "./native"
 import { asBuf, concat2, startsWith } from "./util"
 
-const EMPTY_BUF = Buffer.alloc(0)
+const EMPTY_BUF = Buffer.allocUnsafe(0)
 
 const concatPrefix = (p1: Buffer, p2: string | Buffer | null) => (
   p2 == null ? p1

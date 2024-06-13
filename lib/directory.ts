@@ -38,7 +38,7 @@ type TupleIn = undefined | TupleItem | TupleItem[]
 /** Node subspaces have tuple keys like [SUBDIRS, (bytes)] and [b'layer']. */
 type NodeSubspace = Subspace<TupleIn, TupleItem[], NativeValue, Buffer>
 
-const BUF_EMPTY = Buffer.alloc(0)
+const BUF_EMPTY = Buffer.allocUnsafe(0)
 
 const arrStartsWith = <T>(arr: T[], prefix: T[]): boolean => {
   if (arr.length < prefix.length) return false
@@ -65,7 +65,7 @@ const doTxn = <KeyIn, KeyOut, ValIn, ValOut, T>(
 
 const counterEncoding: Transformer<bigint, bigint> = {
   pack(val) {
-    const b = Buffer.alloc(8)
+    const b = Buffer.allocUnsafe(8)
 
     b.writeBigUInt64LE(val)
 
@@ -88,7 +88,7 @@ type Version = [number, number, number]
 // this.
 const versionEncoder: Transformer<Version, Version> = {
   pack(ver) {
-    const buf = Buffer.alloc(12)
+    const buf = Buffer.allocUnsafe(12)
     buf.writeUInt32LE(ver[0], 0)
     buf.writeUInt32LE(ver[1], 4)
     buf.writeUInt32LE(ver[2], 8)

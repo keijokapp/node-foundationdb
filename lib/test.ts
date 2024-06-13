@@ -16,10 +16,10 @@ const db = fdb.openSync()
 const asBuf = (val: Buffer | string): Buffer => (
   typeof val === 'string' ? Buffer.from(val, 'utf8') : val
 )
-const fromBuf = (b: string | Buffer | null | undefined) => b == null ? 0 : asBuf(b).readInt32LE(0)
+const fromBuf = (b: string | Buffer | null | undefined) => b == null ? 0 : asBuf(b).readInt32LE()
 const toBuf = (n: number) => {
-  const b = Buffer.alloc(4)
-  b.writeInt32LE(n, 0)
+  const b = Buffer.allocUnsafe(4)
+  b.writeInt32LE(n)
   return b
 }
 

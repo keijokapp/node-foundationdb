@@ -33,10 +33,6 @@ import {
 } from './versionstamp'
 import Subspace, { GetSubspace } from './subspace'
 
-const byteZero = Buffer.alloc(1)
-byteZero.writeUInt8(0, 0)
-
-
 export interface RangeOptionsBatch {
   // defaults to Iterator for batch mode, WantAll for getRangeAll.
   streamingMode?: undefined | StreamingMode,
@@ -664,7 +660,7 @@ export default class Transaction<KeyIn = NativeValue, KeyOut = Buffer, ValIn = N
       const id = this.getNextTransactionID()
       if (id > 0xffff) throw new Error('Cannot use more than 65536 unique versionstamps in a single transaction. Either split your writes into multiple transactions or add explicit codes to your unbound versionstamps')
       into.data.writeInt16BE(id, into.codePos)
-      return into.data.slice(into.codePos, into.codePos+2)
+      return into.data.subarray(into.codePos, into.codePos+2)
     }
     return null
   }
@@ -759,7 +755,7 @@ export default class Transaction<KeyIn = NativeValue, KeyOut = Buffer, ValIn = N
         stamp: val
       }
       : {
-        stamp: val.slice(0, 10),
+        stamp: val.subarray(0, 10),
 
         // So this is a bit opinionated - if you call
         // setVersionstampPrefixedValue with no value, the db will just have
@@ -767,7 +763,7 @@ export default class Transaction<KeyIn = NativeValue, KeyOut = Buffer, ValIn = N
         // for the decoder and that can cause issues. We'll just return null
         // in that case - but, yeah, controversial. You might want some other
         // encoding or something. File an issue if this causes you grief.
-        value: this._valueEncoding.unpack(val.slice(10))
+        value: this._valueEncoding.unpack(val.subarray(10))
       }
   }
 
