@@ -35,19 +35,18 @@ export const defaultGetRange = <KeyIn, KeyOut>(prefix: KeyIn, keyXf: Transformer
   end: strInc(keyXf.pack(prefix)),
 })
 
-export const prefixTransformer = <In, Out>(prefix: string | Buffer, inner: Transformer<In, Out>): Transformer<In, Out> => {
-  const _prefix = asBuf(prefix)
+export const prefixTransformer = <In, Out>(prefix: Buffer, inner: Transformer<In, Out>): Transformer<In, Out> => {
   const transformer: Transformer<In, Out> = {
     name: inner.name ? 'prefixed ' + inner.name : 'prefixTransformer',
 
     pack(v: In): Buffer | string {
       // If you heavily nest these it'll get pretty inefficient.
       const innerVal = inner.pack(v)
-      return concat2(_prefix, asBuf(innerVal))
+      return concat2(prefix, asBuf(innerVal))
     },
     unpack(buf: Buffer) {
-      if (!startsWith(buf, _prefix)) throw Error('Cannot unpack key outside of prefix range.')
-      return inner.unpack(buf.slice(_prefix.length))
+      if (!startsWith(buf, prefix)) throw Error('Cannot unpack key outside of prefix range.')
+      return inner.unpack(buf.subarray(prefix.length))
     },
   }
 
@@ -55,12 +54,12 @@ export const prefixTransformer = <In, Out>(prefix: string | Buffer, inner: Trans
     const innerVal = inner.packUnboundVersionstamp!(val)
 
     const unboundStamp: UnboundStamp = {
-      data: concat2(_prefix, innerVal.data),
-      stampPos: _prefix.length + innerVal.stampPos
+      data: concat2(prefix, innerVal.data),
+      stampPos: prefix.length + innerVal.stampPos
     };
 
     if (innerVal.codePos != null) {
-      unboundStamp.codePos = _prefix.length + innerVal.codePos;
+      unboundStamp.codePos = prefix.length + innerVal.codePos;
     }
 
     return unboundStamp;
@@ -68,11 +67,11 @@ export const prefixTransformer = <In, Out>(prefix: string | Buffer, inner: Trans
 
   if (inner.bakeVersionstamp) transformer.bakeVersionstamp = inner.bakeVersionstamp.bind(inner)
 
-  if (inner.range) transformer.range = prefix => {
-    const innerRange = inner.range!(prefix)
+  if (inner.range) transformer.range = innerPrefix => {
+    const innerRange = inner.range!(innerPrefix)
     return {
-      begin: concat2(_prefix, asBuf(innerRange.begin)),
-      end: concat2(_prefix, asBuf(innerRange.end)),
+      begin: concat2(prefix, asBuf(innerRange.begin)),
+      end: concat2(prefix, asBuf(innerRange.end)),
     }
   }
 

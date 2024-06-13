@@ -32,7 +32,7 @@ import {
 
 // TODO: Expose these in lib
 import {packPrefixedVersionstamp} from '../lib/versionstamp'
-import { concat2, startsWith } from '../lib/util'
+import { concat2, emptyBuffer, startsWith } from '../lib/util'
 import {DirectoryError} from '../lib/directory'
 
 import * as assert from 'assert'
@@ -694,7 +694,7 @@ const makeMachine = (db: Database, initialName: Buffer) => {
       let exists = await dir.exists(oper)
       if (verbose) console.log('type', dir.constructor.name)
       let children = exists ? await dir.listAll(oper) : []
-      let layer = dir instanceof Directory ? dir.getLayerRaw() : Buffer.alloc(0)
+      let layer = dir instanceof Directory ? dir.getLayerRaw() : emptyBuffer
 
       const scopedOper = (oper instanceof Database) ? oper.at(logSubspace) : oper.at(logSubspace) // lolscript.
       await scopedOper.set('path', dir.getPath())
