@@ -10,12 +10,7 @@ describe('state tests', () => {
   it('throws if a closed database has a tn run on it', async () => {
     const db = fdb.open()
     db.close()
-    // Not supported on node 8 :(
-    // await assert.rejects(db.get('x'))
-    await db.get('x').then(
-      () => Promise.reject('should have thrown'),
-      (e) => true
-    )
+    await assert.rejects(db.get('x'))
   })
 
   it.skip('cancels pending watches when the database is closed', async () => {
