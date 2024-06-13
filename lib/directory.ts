@@ -63,30 +63,16 @@ const doTxn = <KeyIn, KeyOut, ValIn, ValOut, T>(
   return (dbOrTxn instanceof Database) ? dbOrTxn.doTn(body) : body(dbOrTxn)
 }
 
-// Technically the counter encoding supports 64 bit numbers. We'll only support
-// numbers in the JS safe range (up to 2^53) but thats honestly gonna be fine.
-// Consider exporting this via transformer.
-//
-// Only exported for testing.
-export const counterEncoding: Transformer<number, number> = {
+const counterEncoding: Transformer<bigint, bigint> = {
   pack(val) {
     const b = Buffer.alloc(8)
-    if (!Number.isSafeInteger(val)) throw new DirectoryError('Invalid counter (number outside JS safe range)')
 
-    // If we're using node 12+ everywhere we could just call this:
-    //b.writeBigUInt64LE(BigInt(val))
+    b.writeBigUInt64LE(val)
 
-    const lowBits = (val & 0xffffffff) >>> 0
-    const highBits = ((val - lowBits) / 0x100000000) >>> 0
-
-    b.writeUInt32LE(lowBits, 0) // low
-    b.writeUInt32LE(highBits, 4) // high
     return b
   },
   unpack: (buf) => {
-    const val = buf.readUInt32LE(0) + (buf.readUInt32LE(4) * 0x100000000)
-    if (!Number.isSafeInteger(val)) throw new DirectoryError('Invalid counter (number outside JS safe range)')
-    return val
+    return buf.readBigUInt64LE()
   },
 }
 
@@ -156,7 +142,7 @@ async function synchronized(tn: TxnAny, block: () => Promise<void>) {
 // Exported for testing.
 export class HighContentionAllocator {
   // db: Database<any, any, any, any>
-  counters: Subspace<TupleIn, TupleItem[], number, number>
+  counters: Subspace<TupleIn, TupleItem[], bigint, bigint>
   recent: Subspace<TupleIn, TupleItem[], void, void> // The value here will always be BUF_EMPTY.
 
   constructor(subspace: SubspaceAny) {
@@ -184,8 +170,8 @@ export class HighContentionAllocator {
     // This logic is a direct port of the equivalent code in the ruby bindings.
     // const snap = tn.snapshot()
     while (true) {
-      let [[start], count] = (await counters.snapshot().getRangeAllStartsWith(undefined, {limit: 1, reverse: true}))[0] as [[number], number]
-        || [[0],0]
+      let [[start], count] = (await counters.snapshot().getRangeAllStartsWith(undefined, {limit: 1, reverse: true}))[0] as [[number], bigint]
+        ?? [[0],0n]
 
       let window_advanced = false
       let window
@@ -205,14 +191,14 @@ export class HighContentionAllocator {
             recent.clearRange([], start)
           }
 
-          counters.add(start, 1)
+          counters.add(start, 1n)
           count = (await counters.snapshot().get(start))!
           // console.log('incremented count to', count)
         })
 
         window = window_size(start)
         // Almost all the time, the window is a reasonable size and we break here.
-        if (count * 2 < window) break
+        if (count * 2n < window) break
 
         // But if we've run out of room in the window (fill >= 50%), discard the
         // window and increment the window start by the window size.
