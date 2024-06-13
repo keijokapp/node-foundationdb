@@ -6,7 +6,7 @@ import {
   withEachDb,
 } from './util'
 import {HighContentionAllocator} from '../lib/directory'
-import { startsWith } from '../lib/util'
+import { emptyBuffer, startsWith } from '../lib/util'
 import { defaultTransformer } from '../lib/transformer'
 
 // The binding tester is the actual comprehensive test suite for the directory
@@ -140,7 +140,7 @@ withEachDb(db => describe('directory layer', () => {
 
       // We should only have 'val b' left in the content.
       const entries = await db.at(dl._contentSubspace.withKeyEncoding(defaultTransformer))
-        .getRangeAllStartsWith(Buffer.alloc(0))
+        .getRangeAllStartsWith(emptyBuffer)
       assert.strictEqual(entries.length, 1)
       assert.strictEqual(entries[0][1].toString(), 'val b')
     })
@@ -158,7 +158,7 @@ withEachDb(db => describe('directory layer', () => {
       // Ok, the partition should contain both items. I'm quite uncomfortable
       // about the fact there's no nice way to do this using the current API.
       const contents = await db.at(part.content.withKeyEncoding(defaultTransformer))
-        .getRangeAllStartsWith(Buffer.alloc(0))
+        .getRangeAllStartsWith(emptyBuffer)
     })
 
     it('refuses to open a directory with the wrong layer specified', async () => {

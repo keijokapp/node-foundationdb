@@ -80,21 +80,21 @@ const id = (x: any) => x
 export const encoders = {
   int32BE: {
     pack(num) {
-      const b = Buffer.alloc(4)
-      b.writeInt32BE(num, 0)
+      const b = Buffer.allocUnsafe(4)
+      b.writeInt32BE(num)
       return b
     },
-    unpack(buf) { return buf.readInt32BE(0) }
+    unpack(buf) { return buf.readInt32BE() }
   } as Transformer<number, number>,
 
   json: {
     pack(obj) { return JSON.stringify(obj) },
-    unpack(buf) { return JSON.parse(buf.toString('utf8')) }
+    unpack(buf) { return JSON.parse(buf.toString()) }
   } as Transformer<any, any>,
 
   string: {
-    pack(str) { return Buffer.from(str, 'utf8') },
-    unpack(buf) { return buf.toString('utf8') }
+    pack(str) { return Buffer.from(str) },
+    unpack(buf) { return buf.toString() }
   } as Transformer<string, string>,
 
   buf: {
