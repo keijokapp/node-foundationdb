@@ -29,14 +29,7 @@ export default class Subspace<KeyIn = NativeValue, KeyOut = Buffer, ValIn = Nati
 
   _bakedKeyXf: Transformer<KeyIn, KeyOut> // This is cached from _prefix + keyXf.
 
-  _noDefaultPrefix: boolean
-
-  constructor(
-    rawPrefix: string | Buffer | null,
-    keyXf?: Transformer<KeyIn, KeyOut>,
-    valueXf?: Transformer<ValIn, ValOut>,
-    noDefaultPrefix: boolean = false
-  ) {
+  constructor(rawPrefix: string | Buffer | null, keyXf?: Transformer<KeyIn, KeyOut>, valueXf?: Transformer<ValIn, ValOut>) {
     this.prefix = rawPrefix != null ? Buffer.from(rawPrefix) : EMPTY_BUF
 
     // Ugh typing this is a mess. Usually this will be fine since if you say new
@@ -45,24 +38,6 @@ export default class Subspace<KeyIn = NativeValue, KeyOut = Buffer, ValIn = Nati
     this.valueXf = valueXf || (defaultTransformer as Transformer<any, any>)
 
     this._bakedKeyXf = rawPrefix ? prefixTransformer(rawPrefix, this.keyXf) : this.keyXf
-
-    this._noDefaultPrefix = noDefaultPrefix
-  }
-
-  /**
-   * Switch to a new mode of handling ranges. By default, the range operations (`getRange` family
-   * and `clearRange`) treat calls with missing end key as operations on prefix ranges. That means
-   * that a call like `tn.at('a').getRange('x')` acts on prefix `ax`, ie key range `[ax, ay)`. In
-   * the new mode, the missing end key defaults to a subspace end (inclusive), ie that call would
-   * act on a range `[ax, b)`. This enabled specifying key ranges not possible before.
-   *
-   * To specifiy range as a prefix, use `StartsWith` version of those methods (eg
-   * `getRangeAllStartsWith`).
-   *
-   * @see Subspace.packRange
-   */
-  noDefaultPrefix() {
-    return new Subspace(this.prefix, this.keyXf, this.valueXf, true)
   }
 
   // All these template parameters make me question my life choices, but this is
@@ -92,12 +67,12 @@ export default class Subspace<KeyIn = NativeValue, KeyOut = Buffer, ValIn = Nati
     | Subspace<CKI, CKO, CVI, CVO>;
   at(prefix?: KeyIn | null, keyXf: Transformer<unknown, unknown> = this.keyXf, valueXf: Transformer<unknown, unknown> = this.valueXf) {
     const _prefix = prefix == null ? null : this.keyXf.pack(prefix)
-    return new Subspace(concatPrefix(this.prefix, _prefix), keyXf, valueXf, this._noDefaultPrefix)
+    return new Subspace(concatPrefix(this.prefix, _prefix), keyXf, valueXf)
   }
 
   /** At a child prefix thats specified without reference to the key transformer */
   atRaw(prefix: Buffer) {
-    return new Subspace(concatPrefix(this.prefix, prefix), this.keyXf, this.valueXf, this._noDefaultPrefix)
+    return new Subspace(concatPrefix(this.prefix, prefix), this.keyXf, this.valueXf)
   }
 
   withKeyEncoding(keyXf?: undefined): Subspace<NativeValue, Buffer, ValIn, ValOut>
@@ -106,7 +81,7 @@ export default class Subspace<KeyIn = NativeValue, KeyOut = Buffer, ValIn = Nati
     | Subspace<NativeValue, Buffer, ValIn, ValOut>
     | Subspace<CKI, CKO, ValIn, ValOut>
   withKeyEncoding(keyXf?: Transformer<unknown, unknown>) {
-    return new Subspace(this.prefix, keyXf, this.valueXf, this._noDefaultPrefix)
+    return new Subspace(this.prefix, keyXf, this.valueXf)
   }
 
   withValueEncoding(valueXf?: undefined): Subspace<KeyIn, KeyOut, NativeValue, Buffer>
@@ -115,7 +90,7 @@ export default class Subspace<KeyIn = NativeValue, KeyOut = Buffer, ValIn = Nati
     | Subspace<KeyIn, KeyOut, NativeValue, Buffer>
     | Subspace<KeyIn, KeyOut, CVI, CVO>
   withValueEncoding(valueXf?: Transformer<unknown, unknown>) {
-    return new Subspace(this.prefix, this.keyXf, valueXf, this._noDefaultPrefix)
+    return new Subspace(this.prefix, this.keyXf, valueXf)
   }
 
   // GetSubspace implementation
@@ -153,21 +128,10 @@ export default class Subspace<KeyIn = NativeValue, KeyOut = Buffer, ValIn = Nati
    * Encodes a range specified by `start`/`end` pair using configured key encoder.
    *
    * @param start Start of the key range. If undefined, the start of the subspace is assumed.
-   * @param end End of the key range. If undefined, the end of the subspace is assumed, unless
-   * `noDefaultPrefix` flag is set or enabled for this subspace, in which case, start key is treated
-   * as a prefix.
-   * @param noDefaultPrefix Disable treating start key as a prefix if end key is not specified.
+   * @param end End of the key range. If undefined, the end of the subspace is assumed.
    * @returns Encoded range as a `{ begin, end }` record.
    */
-  packRange(
-    start?: KeyIn,
-    end?: KeyIn,
-    noDefaultPrefix: boolean = false
-  ): {begin: NativeValue, end: NativeValue} {
-    if (start !== undefined && end === undefined && !this._noDefaultPrefix && !noDefaultPrefix) {
-      return this.packRangeStartsWith(start)
-    }
-
+  packRange(start?: KeyIn, end?: KeyIn): {begin: NativeValue, end: NativeValue} {
     return {
       begin: start !== undefined ? this._bakedKeyXf.pack(start) : this.prefix,
       end: end !== undefined ? this._bakedKeyXf.pack(end) : strInc(this.prefix)

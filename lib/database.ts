@@ -24,15 +24,6 @@ export default class Database<KeyIn = NativeValue, KeyOut = Buffer, ValIn = Nati
     this.subspace = subspace//new Subspace<KeyIn, KeyOut, ValIn, ValOut>(prefix, keyXf, valueXf)
   }
 
-  /**
-   * Switch to a new mode of handling ranges.
-   *
-   * @see Subspace.noDefaultPrefix
-   */
-  noDefaultPrefix() {
-    return new Database(this._db, this.subspace.noDefaultPrefix())
-  }
-
   setNativeOptions(opts: DatabaseOptions) {
     eachOption(databaseOptionData, opts, (code, val) => this._db.setOption(code, val))
   }
