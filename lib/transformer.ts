@@ -1,7 +1,7 @@
 // The transformer type is used to transparently translate keys and values
 // through an encoder and decoder function.
 
-import {asBuf, concat2, strInc, startsWith} from './util'
+import {asBuf, concat2, id, strInc, startsWith} from './util'
 import {UnboundStamp} from './versionstamp'
 
 export type Transformer<In, Out> = {
@@ -24,7 +24,6 @@ export type Transformer<In, Out> = {
   range?(prefix: In): {begin: Buffer | string, end: Buffer | string},
 }
 
-const id = <T>(x: T) => x
 export const defaultTransformer: Transformer<Buffer | string, Buffer> = {
   pack: id,
   unpack: id

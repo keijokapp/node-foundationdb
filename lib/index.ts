@@ -1,9 +1,3 @@
-// Stuff that hasn't been ported over:
-
-// const Transactional = require('./retryDecorator')
-// const locality = require('./locality')
-// const directory = require('./directory')
-
 import nativeMod, * as fdb from './native'
 import Database from './database'
 import {eachOption} from './opts'
@@ -65,7 +59,7 @@ export {
   ErrorPredicate,
 } from './opts.g'
 
-import {strInc} from './util'
+import {id, strInc} from './util'
 export const util = {strInc}
 
 import * as tuple from 'fdb-tuple'
@@ -76,7 +70,6 @@ export {TupleItem, tuple}
 // This must come after tuple is defined, above.
 export const directory = new DirectoryLayer() // Convenient root directory
 
-const id = (x: any) => x
 export const encoders = {
   int32BE: {
     pack(num) {
@@ -124,37 +117,3 @@ export function open(clusterFile?: string, dbOpts?: DatabaseOptions) {
   if (dbOpts) db.setNativeOptions(dbOpts)
   return db
 }
-
-// *** Some deprecated stuff to remove:
-
-/** @deprecated This method will be removed in a future version. Call fdb.open() directly - it is syncronous too. */
-export const openSync = deprecate(open, 'This method will be removed in a future version. Call fdb.open() directly - it is syncronous too.')
-
-// Previous versions of this library allowed you to create a cluster and then
-// create database objects from it. This was all removed from the C API. We'll
-// fake it for now, and remove this later.
-
-const stubCluster = (clusterFile?: string) => ({
-  openDatabase(dbName: 'DB' = 'DB', opts?: DatabaseOptions) {
-    return Promise.resolve(open(clusterFile, opts))
-  },
-  openDatabaseSync(dbName: 'DB' = 'DB', opts?: DatabaseOptions) {
-    return open(clusterFile, opts)
-  },
-  close() {}
-})
-
-/** @deprecated FDB clusters have been removed from the API. Call open() directly to connect. */
-export const createCluster = deprecate((clusterFile?: string) => {
-  return Promise.resolve(stubCluster(clusterFile))
-}, 'FDB clusters have been removed from the API. Call open() directly to connect.')
-
-/** @deprecated FDB clusters have been removed from the API. Call open() directly to connect. */
-export const createClusterSync = deprecate((clusterFile?: string) => {
-  return stubCluster(clusterFile)
-}, 'FDB clusters have been removed from the API. Call open() directly to connect.')
-
-
-// TODO: Should I expose a method here for stopping the network for clean shutdown?
-// I feel like I should.. but I'm not sure when its useful. Will the network thread
-// keep the process running?
