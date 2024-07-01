@@ -1,5 +1,8 @@
 declare module "foundationdb" {
 
+export { type TupleItem } from 'fdb-tuple';
+export * as tuple from 'fdb-tuple';
+
 export type WatchWithValue<Value> = Watch & {
     value: Value | undefined;
 };
@@ -276,8 +279,6 @@ export class Transaction<KeyIn = NativeValue, KeyOut = Buffer, ValIn = NativeVal
      * Create a shallow copy of the transaction in the specified subspace (or database, transaction, or directory).
     */
     at<CKI, CKO, CVI, CVO>(hasSubspace: GetSubspace<CKI, CKO, CVI, CVO>): Transaction<CKI, CKO, CVI, CVO>;
-    /** @deprecated - use transaction.at(db) instead. */
-    scopedTo<CKI, CKO, CVI, CVO>(db: Database<CKI, CKO, CVI, CVO>): Transaction<CKI, CKO, CVI, CVO>;
     /** Get the current subspace */
     getSubspace(): Subspace<KeyIn, KeyOut, ValIn, ValOut>;
     /**
