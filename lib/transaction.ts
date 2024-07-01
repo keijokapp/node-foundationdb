@@ -1,7 +1,6 @@
 import {
   Watch,
   NativeTransaction,
-  Callback,
   NativeValue,
   Version,
 } from './native'
@@ -217,15 +216,10 @@ export default class Transaction<KeyIn = NativeValue, KeyOut = Buffer, ValIn = N
   /**
    * This uses the raw API to commit a transaction. 99% of users shouldn't touch this, and should instead use `db.doTn(async tn => {...})`, which will automatically commit the transaction and retry if necessary.
    */
-  rawCommit(): Promise<void>
-  /** @deprecated - Use promises API instead. */
-  rawCommit(cb: Callback<void>): void
-  rawCommit(cb?: Callback<void>) {
+  rawCommit(): Promise<void> {
     this._assertValid()
 
-    return cb
-      ? this._tn.commit(cb)
-      : this._tn.commit()
+    return this._tn.commit()
   }
 
   rawReset() {
@@ -237,15 +231,10 @@ export default class Transaction<KeyIn = NativeValue, KeyOut = Buffer, ValIn = N
     this._tn.cancel()
   }
 
-  rawOnError(code: number): Promise<void>
-  /** @deprecated - Use promises API instead. */
-  rawOnError(code: number, cb: Callback<void>): void
-  rawOnError(code: number, cb?: Callback<void>) {
+  rawOnError(code: number): Promise<void> {
     this._assertValid()
 
-    return cb
-      ? this._tn.onError(code, cb)
-      : this._tn.onError(code)
+    return this._tn.onError(code)
   }
 
   /**
@@ -254,20 +243,13 @@ export default class Transaction<KeyIn = NativeValue, KeyOut = Buffer, ValIn = N
    * @returns the value for the specified key, or `undefined` if the key does
    * not exist in the database.
    */
-  get(key: KeyIn): Promise<ValOut | undefined>
-  /** @deprecated - Use promises API instead. */
-  get(key: KeyIn, cb: Callback<ValOut | undefined>): void
-  get(key: KeyIn, cb?: Callback<ValOut | undefined>) {
+  get(key: KeyIn): Promise<ValOut | undefined> {
     this._assertValid()
 
     const keyBuf = this.subspace.packKey(key)
 
-    return cb
-      ? this._tn.get(keyBuf, this.isSnapshot, (err, val) => {
-        cb(err, val == null ? undefined : this.subspace.unpackValue(val))
-      })
-      : this._tn.get(keyBuf, this.isSnapshot)
-        .then(val => val == null ? undefined : this.subspace.unpackValue(val))
+    return this._tn.get(keyBuf, this.isSnapshot)
+      .then(val => val == null ? undefined : this.subspace.unpackValue(val))
   }
 
   /** Checks if the key exists in the database. This is just a shorthand for
@@ -662,13 +644,10 @@ export default class Transaction<KeyIn = NativeValue, KeyOut = Buffer, ValIn = N
   }
 
   /** Get the database version used to perform reads in this transaction. */
-  getReadVersion(): Promise<Version>
-  /** @deprecated - Use promises API instead. */
-  getReadVersion(cb: Callback<Version>): void
-  getReadVersion(cb?: Callback<Version>) {
+  getReadVersion(): Promise<Version> {
     this._assertValid()
 
-    return cb ? this._tn.getReadVersion(cb) : this._tn.getReadVersion()
+    return this._tn.getReadVersion()
   }
 
   getCommittedVersion() {
@@ -679,27 +658,21 @@ export default class Transaction<KeyIn = NativeValue, KeyOut = Buffer, ValIn = N
 
   // Note: This promise can't be directly returned via the return value of a
   // transaction.
-  getVersionstamp(): {promise: Promise<Buffer>}
-  /** @deprecated - Use promises API instead. */
-  getVersionstamp(cb: Callback<Buffer>): void
-  getVersionstamp(cb?: Callback<Buffer>) {
+  getVersionstamp(): {promise: Promise<Buffer>} {
     this._assertValid()
 
-    if (cb) return this._tn.getVersionstamp(cb)
-    else {
-      // This one is surprisingly tricky:
-      //
-      // - If we return the promise as normal, you'll deadlock if you try to
-      //   return it via your async tn function (since JS automatically
-      //   flatmaps promises)
-      // - Also if the tn conflicts, this promise will also generate an error.
-      //   By default node will crash your program when it sees this error.
-      //   We'll allow the error naturally, but suppress node's default
-      //   response by adding an empty catch function
-      const promise = this._tn.getVersionstamp()
-      promise.catch(doNothing)
-      return {promise}
-    }
+    // This one is surprisingly tricky:
+    //
+    // - If we return the promise as normal, you'll deadlock if you try to
+    //   return it via your async tn function (since JS automatically
+    //   flatmaps promises)
+    // - Also if the tn conflicts, this promise will also generate an error.
+    //   By default node will crash your program when it sees this error.
+    //   We'll allow the error naturally, but suppress node's default
+    //   response by adding an empty catch function
+    const promise = this._tn.getVersionstamp()
+    promise.catch(doNothing)
+    return {promise}
   }
 
   getAddressesForKey(key: KeyIn): string[] {
