@@ -26,9 +26,9 @@ jobs:
     - run: wget -nv "https://github.com/apple/foundationdb/releases/download/7.2.5/foundationdb-server_7.2.5-1_amd64.deb"
     - run: sudo dpkg -i foundationdb-server_7.2.5-1_amd64.deb
 
-    - run: yarn
-    - run: yarn prebuild
-    - run: yarn test
+    - run: npm ci
+    - run: npm prebuild
+    - run: npm test
 
     - name: Upload artifacts
       uses: actions/upload-artifact@v4
@@ -53,15 +53,15 @@ jobs:
     - run: wget -nv "https://github.com/apple/foundationdb/releases/download/7.2.5/FoundationDB-7.2.5_arm64.pkg"
     - run: sudo installer -pkg FoundationDB-7.2.5_arm64.pkg -target /
 
-    - run: yarn
-    - run: yarn test
+    - run: npm ci
+    - run: npm test
 
-    - run: yarn prebuild --arch arm64
+    - run: npm prebuild --arch arm64
 
     - run: wget -nv "https://github.com/apple/foundationdb/releases/download/7.2.5/FoundationDB-7.2.5_x86_64.pkg"
     - run: sudo installer -pkg FoundationDB-7.2.5_x86_64.pkg -target /
 
-    - run: yarn prebuild --arch x64
+    - run: npm prebuild --arch x64
 
     - name: Upload artifacts
       uses: actions/upload-artifact@v4
@@ -92,11 +92,11 @@ jobs:
 
   #   - run: echo "C:\\Program Files\\FoundationDB\bin" >> $GITHUB_PATH
 
-  #   - run: yarn
-  #   - run: yarn prebuild
+  #   - run: npm ci
+  #   - run: npm prebuild
 
   #   # For some reason this test fails - it can't find the prebuild even though its *right there*!!
-  #   # - run: yarn test
+  #   # - run: npm test
   #   # - run: Get-ChildItem -Recurse prebuild
 
   #   - name: Upload artifacts
@@ -135,7 +135,7 @@ jobs:
     - run: sudo dpkg -i foundationdb-clients_7.2.5-1_amd64.deb
 
     # And I could just run the linux script last anyway.
-    - run: yarn
+    - run: npm ci
     - run: npm publish
       env:
         NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
