@@ -21,7 +21,7 @@ const concatPrefix = (p1: Buffer, p2: string | Buffer | null) => (
 // in to the database (eg in a set(keyin, valin) call) and the types of keys and
 // values returned. KeyIn == KeyOut and ValIn == ValOut in almost all cases.
 export default class Subspace<KeyIn = NativeValue, KeyOut = Buffer, ValIn = NativeValue, ValOut = Buffer> {
-  prefix: Buffer // This is baked into bakedKeyXf but we hold it so we can call .at / .atPrefix.
+  prefix: Buffer // This is baked into bakedKeyXf but we hold it so we can call `.at`.
   keyXf: Transformer<KeyIn, KeyOut>
   valueXf: Transformer<ValIn, ValOut>
 
@@ -94,7 +94,6 @@ export default class Subspace<KeyIn = NativeValue, KeyOut = Buffer, ValIn = Nati
   // GetSubspace implementation
   getSubspace() { return this }
 
-  // Helpers to inspect whats going on.
   packKey(key: KeyIn): NativeValue {
     return this._bakedKeyXf.pack(key)
   }

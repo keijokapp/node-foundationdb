@@ -1,10 +1,7 @@
 import 'mocha'
 import fdb = require('../lib')
 import assert = require('assert')
-import {
-  numXF,
-  withEachDb,
-} from './util'
+import { withEachDb } from './util'
 import {HighContentionAllocator} from '../lib/directory'
 import { emptyBuffer, startsWith } from '../lib/util'
 import { defaultTransformer } from '../lib/transformer'

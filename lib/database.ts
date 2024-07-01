@@ -21,7 +21,7 @@ export default class Database<KeyIn = NativeValue, KeyOut = Buffer, ValIn = Nati
 
   constructor(db: fdb.NativeDatabase, subspace: Subspace<KeyIn, KeyOut, ValIn, ValOut>) {
     this._db = db
-    this.subspace = subspace//new Subspace<KeyIn, KeyOut, ValIn, ValOut>(prefix, keyXf, valueXf)
+    this.subspace = subspace
   }
 
   setNativeOptions(opts: DatabaseOptions) {
@@ -41,8 +41,6 @@ export default class Database<KeyIn = NativeValue, KeyOut = Buffer, ValIn = Nati
   getSubspace() { return this.subspace }
   getPrefix(): Buffer { return this.subspace.prefix }
 
-  // The actual behaviour here has moved into subspace, but this method is kept for
-  // convenience and backwards compatibility.
   /** Create a shallow reference to the database at a specified subspace */
   at<CKI, CKO, CVI, CVO>(hasSubspace: GetSubspace<CKI, CKO, CVI, CVO>): Database<CKI, CKO, CVI, CVO>
   at(prefix?: KeyIn | null, keyXf?: undefined, valueXf?: undefined): Database<KeyIn, KeyOut, ValIn, ValOut>;
@@ -129,8 +127,6 @@ export default class Database<KeyIn = NativeValue, KeyOut = Buffer, ValIn = Nati
       return Promise.resolve()
     })
   }
-
-  // TODO: setOption.
 
   // Infrequently used. You probably want to use doTransaction instead.
   rawCreateTransaction(opts?: TransactionOptions) {
@@ -242,9 +238,6 @@ export default class Database<KeyIn = NativeValue, KeyOut = Buffer, ValIn = Nati
   byteMin(key: KeyIn, oper: ValIn) { return this.atomicOp(MutationType.ByteMin, key, oper) }
   byteMax(key: KeyIn, oper: ValIn) { return this.atomicOp(MutationType.ByteMax, key, oper) }
 
-  // setVersionstampedKeyBuf(prefix: Buffer | undefined, suffix: Buffer | undefined, value: ValIn) {
-  //   return this.doOneshot(tn => tn.setVersionstampedKeyBuf(prefix, suffix, value))
-  // }
   setVersionstampedKey(key: KeyIn, value: ValIn, bakeAfterCommit?: boolean) {
     return this.doOneshot(tn => tn.setVersionstampedKey(key, value, bakeAfterCommit))
   }
@@ -252,15 +245,10 @@ export default class Database<KeyIn = NativeValue, KeyOut = Buffer, ValIn = Nati
     return this.doOneshot(tn => tn.setVersionstampSuffixedKey(key, value, suffix))
   }
 
-  // setVersionstampedKeyPrefix(prefix: KeyIn, value: ValIn) {
-  //   return this.setVersionstampedKey(prefix, undefined, value)
-  // }
-
   setVersionstampedValue(key: KeyIn, value: ValIn, bakeAfterCommit: boolean = true) {
     return this.doOneshot(tn => tn.setVersionstampedValue(key, value, bakeAfterCommit))
   }
 
-  // setVersionstampedValueBuf(key: KeyIn, oper: Buffer) { return this.atomicOpKB(MutationType.SetVersionstampedValue, key, oper) }
   setVersionstampPrefixedValue(key: KeyIn, value?: ValIn, prefix?: Buffer) {
     return this.doOneshot(tn => tn.setVersionstampPrefixedValue(key, value, prefix))
   }

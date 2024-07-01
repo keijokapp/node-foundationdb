@@ -1,19 +1,17 @@
 import Transaction from "./transaction";
-import { Database, tuple, TupleItem, util } from ".";
+import { Database, tuple, TupleItem } from ".";
 import { Transformer, defaultTransformer } from "./transformer";
 import { TransactionOptionCode } from "./opts.g";
 import { concat2, startsWith, strInc, asBuf, emptyBuffer } from "./util";
 import Subspace, { root } from "./subspace";
 import { inspect } from "util";
 import { NativeValue } from "./native";
-// import FDBError from './error'
 
 export class DirectoryError extends Error {
   constructor(description: string) {
     super(description)
 
     Object.setPrototypeOf(this, DirectoryError.prototype);
-    // Error.captureStackTrace(this, this.constructor);
   }
 }
 
@@ -139,12 +137,10 @@ async function synchronized(tn: TxnAny, block: () => Promise<void>) {
 
 // Exported for testing.
 export class HighContentionAllocator {
-  // db: Database<any, any, any, any>
   counters: Subspace<TupleIn, TupleItem[], bigint, bigint>
   recent: Subspace<TupleIn, TupleItem[], void, void>
 
   constructor(subspace: SubspaceAny) {
-    // this.db = db.withKeyEncoding(tuple) //.at([counters, recent])
     this.counters = subspace.withKeyEncoding(tuple).at(0).withValueEncoding(counterEncoding)
     this.recent = subspace.withKeyEncoding(tuple).at(1).withValueEncoding(voidEncoding)
   }
@@ -166,7 +162,6 @@ export class HighContentionAllocator {
     const recent = _tn.at(this.recent)
 
     // This logic is a direct port of the equivalent code in the ruby bindings.
-    // const snap = tn.snapshot()
     while (true) {
       let [[start], count] = (await counters.snapshot().getRangeAllStartsWith(undefined, {limit: 1, reverse: true}))[0] as [[number], bigint]
         ?? [[0],0n]
@@ -255,13 +250,6 @@ const normalize_path = (path: PathIn): Path => {
     : Array.isArray(path)
       ? path
       : [path]
-  // if (!Array.isArray(path)) path = [path]
-
-  // for (let i = 0; i < path.length; i++) {
-  //   if (typeof path[i] !== 'string') path[i] = path[i].toString()
-  // }
-
-  // return path as string[]
 }
 
 // Ugh why is this called 'node'?? The word 'node' is used throughout this file
@@ -372,7 +360,6 @@ export class Directory<KeyIn = NativeValue, KeyOut = Buffer, ValIn = NativeValue
       })
       directoryLayer._path = path
 
-      // super(directoryLayer, path, subspace, 'partition')
       this._layer = PARTITION_BUF
 
       this._directoryLayer = directoryLayer
@@ -469,7 +456,6 @@ export class Directory<KeyIn = NativeValue, KeyOut = Buffer, ValIn = NativeValue
   }
 
   private _partitionSubpath(path: PathIn, directoryLayer: DirectoryLayer = this._directoryLayer) {
-    // console.log('_partitionSubpath', path, directoryLayer._path, this._path, this._path?.slice(directoryLayer._path.length).concat(normalize_path(path)))
     return this._path?.slice(directoryLayer._path.length).concat(normalize_path(path))
   }
 
@@ -564,8 +550,6 @@ export class DirectoryLayer {
         // The directory exists. Open it!
         if (existing_node.isInPartition()) {
           const subpath = existing_node.getPartitionSubpath()
-          // console.log('existing node is in partition at path', existing_node, existing_node.getPartitionSubpath())
-
           // This is pretty ugly. We're only using the existing node's directory layer. Better to
           // just create that child directory layer directly or something.
           return await existing_node.getContentsSync(this)!._directoryLayer._createOrOpenInternal(
@@ -573,7 +557,6 @@ export class DirectoryLayer {
           )
         } else {
           if (!allowOpen) throw new DirectoryError('The directory already exists.')
-          // console.log('existing_node.layer', existing_node.layer, layerBuf)
           if (layerBuf.length && !existing_node.layer!.equals(layerBuf)) throw new DirectoryError('The directory was created with an incompatible layer.')
 
           return existing_node.getContentsSync(this, keyXf, valueXf)!
@@ -588,7 +571,6 @@ export class DirectoryLayer {
         // generate a txn conflict, we generate a new prefix in the next retry attempt.
         let actualPrefix
         if (reqPrefix == null) {
-          // const subspace = this._contentSubspace.at(await this._allocator.allocate(txn))
           actualPrefix = concat2(this._contentSubspace.prefix, await this._allocator.allocate(txn))
           if ((await txn.at(root).getRangeAllStartsWith(actualPrefix, {limit: 1})).length > 0) {
             throw new DirectoryError('The database has keys stored at the prefix chosen by the automatic prefix allocator: ' + inspect(actualPrefix))
@@ -846,9 +828,6 @@ export class DirectoryLayer {
 
   private async find(txn: TxnAny, path: Path) {
     let node = new Node(this._rootNode, [], path)
-    // There's an interesting problem where the node at the root will not have
-    // the layer property set, because the layer in that case is implicit.
-    // if (this._path.length === 0) node.layer = ''
 
     for (let i = 0; i < path.length; i++) {
       const ref = await txn.at(node.subspace!).get([SUBDIRS_KEY, path[i]])
@@ -900,16 +879,9 @@ export class DirectoryLayer {
   }
 
   private async* _subdirNamesAndNodes(txn: TxnAny, node: NodeSubspace) {
-    // TODO: This could work using async iterators to improve performance of searches on very large directories.
     for await (const [key, prefix] of txn.at(node).getRangeStartsWith(SUBDIRS_KEY)) {
       yield [key[1], this._nodeWithPrefix(prefix)] as [Buffer, NodeSubspace]
     }
-  }
-
-  private async _subdirNamesAndNodesAll(txn: TxnAny, node: NodeSubspace) {
-    const items = []
-    for await(const pair of this._subdirNamesAndNodes(txn, node)) items.push(pair)
-    return items
   }
 
   private async _removeFromParent(txn: TxnAny, path: Path) {
@@ -929,7 +901,6 @@ export class DirectoryLayer {
     txn.at(node).clearRangeStartsWith(undefined)
   }
 
-  // private _isPrefixFree(txn: TxnAny, subspace: Subspace<TupleIn, TupleItem, any, any>) {
   private async _isPrefixFree(txn: TxnAny, prefix: Buffer) {
     // Returns true if the given prefix does not "intersect" any currently
     // allocated prefix (including the root node). This means that it neither
