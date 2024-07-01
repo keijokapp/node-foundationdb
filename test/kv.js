@@ -1,20 +1,31 @@
-import assert from 'assert'
+import assert from 'node:assert'
 import { describe, it } from 'mocha'
-import {
-  Transformer, TupleItem, Watch, encoders, keySelector, tuple,
-} from '../lib'
-import { prefix as testPrefix, withEachDb } from './util'
+import { encoders, keySelector, tuple } from '../lib/index.js'
+import { prefix as testPrefix, withEachDb } from './util.js'
+
+/**
+ * @import { Transformer, TupleItem, Watch } from '../lib/index.js'
+ */
 
 process.on('unhandledRejection', err => { throw err })
 
-const codeBuf = (code: number) => {
+/**
+ * @param {number} code
+ * @returns {Buffer}
+ */
+const codeBuf = code => {
   const b = Buffer.allocUnsafe(2)
   b.writeUInt16BE(code, 0)
 
   return b
 }
 
-const bakeVersionstamp = (vs: Buffer, code: number): TupleItem => ({
+/**
+ * @param {Buffer} vs
+ * @param {number} code
+ * @returns {TupleItem}
+ */
+const bakeVersionstamp = (vs, code) => ({
   type: 'versionstamp', value: Buffer.concat([vs, codeBuf(code)]),
 })
 
@@ -96,13 +107,13 @@ withEachDb(db => describe('key value functionality', () => {
     let txnAttempts = 0
     await Promise.all(new Array(concurrentWrites).fill(0).map(
       () => db.doTransaction(async tn => {
-        const val = encoders.int32BE.unpack((await tn.get(key)) as Buffer)
+        const val = encoders.int32BE.unpack(/** @type {Buffer} */(await tn.get(key)))
         tn.set(key, encoders.int32BE.pack(val + 1))
         txnAttempts++
       }),
     ))
 
-    const result = encoders.int32BE.unpack((await db.get(key)) as Buffer)
+    const result = encoders.int32BE.unpack(/** @type {Buffer} */(await db.get(key)))
     assert.strictEqual(result, concurrentWrites)
 
     // This doesn't necessarily mean there's an error, but if there weren't
@@ -112,8 +123,13 @@ withEachDb(db => describe('key value functionality', () => {
   })
 
   describe('native encoding', () => {
-    // This is a test for a regression.
-    const setGetAssertEqual = async (val: any, valueEncoding: Transformer<any, any>) => {
+    /**
+     * This is a test for a regression.
+     *
+     * @param {any} val
+     * @param {Transformer<any, any>} valueEncoding
+     */
+    const setGetAssertEqual = async (val, valueEncoding) => {
       await db.withValueEncoding(valueEncoding).doTransaction(async tn => {
         tn.set('xxx', val)
         const result = await tn.get('xxx')
@@ -188,7 +204,7 @@ withEachDb(db => describe('key value functionality', () => {
       const result = await db_.getVersionstampPrefixedValue('hi there')
       assert.notStrictEqual(result, undefined)
 
-      const { stamp, value } = result!
+      const { stamp, value } = /** @type {NonNullable<typeof result>} */(result)
       assert.strictEqual(stamp.length, 10) // Opaque.
       assert.strictEqual(value, 'yooo')
     })
@@ -197,14 +213,17 @@ withEachDb(db => describe('key value functionality', () => {
       const db_ = db.withKeyEncoding(tuple)
       await db_.set([1, 2, 3], 'hi there')
       const result = await db_.get([1, 2, 3])
-      assert.strictEqual(result!.toString(), 'hi there')
+      assert.strictEqual(/** @type {Buffer} */(result).toString(), 'hi there')
     })
 
     it('commits a tuple with unbound key versionstamps and bakes the vs and code', async () => {
       const db_ = db.withKeyEncoding(tuple).withValueEncoding(encoders.string)
-      const key1: TupleItem[] = [1, 2, 3, tuple.unboundVersionstamp()] // should end up with code 0
-      const key2: TupleItem[] = [1, 2, 3, tuple.unboundVersionstamp()] // code 1
-      const key3: TupleItem[] = [1, 2, 3, tuple.unboundVersionstamp(321)] // code 321
+      /** @type {TupleItem[]} */
+      const key1 = [1, 2, 3, tuple.unboundVersionstamp()] // should end up with code 0
+      /** @type {TupleItem[]} */
+      const key2 = [1, 2, 3, tuple.unboundVersionstamp()] // code 1
+      /** @type {TupleItem[]} */
+      const key3 = [1, 2, 3, tuple.unboundVersionstamp(321)] // code 321
 
       const actualStamp = await (await db_.doTn(async tn => {
         tn.setVersionstampedKey(key1, '1')
@@ -234,7 +253,8 @@ withEachDb(db => describe('key value functionality', () => {
 
     it('does not bake the vs in setVersionstampedKey(bakeAfterCommit=false)', async () => {
       const db_ = db.withKeyEncoding(tuple)
-      const key: TupleItem[] = [1, 2, 3, { type: 'unbound versionstamp' }]
+      /** @type {TupleItem[]} */
+      const key = [1, 2, 3, { type: 'unbound versionstamp' }]
       await db_.setVersionstampedKey(key, 'hi', false)
 
       assert.deepStrictEqual(key, [1, 2, 3, { type: 'unbound versionstamp' }])
@@ -250,12 +270,13 @@ withEachDb(db => describe('key value functionality', () => {
         return value
       })
 
-      assert.strictEqual((value as any)[0].type, 'versionstamp')
+      assert.strictEqual(/** @type {any} */(value)[0].type, 'versionstamp')
     })
 
     it('encodes versionstamps in child tuples', async () => {
       const db_ = db.withKeyEncoding(tuple).withValueEncoding(encoders.string)
-      const key: any[] = [1, [2, { type: 'unbound versionstamp' }]]
+      /** @type {TupleItem[]} */
+      const key = [1, [2, { type: 'unbound versionstamp' }]]
 
       const actualStamp = await (await db_.doTn(async tn => {
         tn.setVersionstampedKey(key, 'hi there')
@@ -274,9 +295,12 @@ withEachDb(db => describe('key value functionality', () => {
 
     it('commits a tuple with unbound value versionstamps and bakes the vs and code', async () => {
       const db_ = db.withKeyEncoding(encoders.string).withValueEncoding(tuple)
-      const val1: TupleItem[] = [1, 2, 3, { type: 'unbound versionstamp' }, 5] // code 1
-      const val2: TupleItem[] = [1, 2, 3, { type: 'unbound versionstamp' }] // code 2
-      const val3: TupleItem[] = [1, 2, 3, { type: 'unbound versionstamp', code: 321 }] // code 321
+      /** @type {TupleItem[]} */
+      const val1 = [1, 2, 3, { type: 'unbound versionstamp' }, 5] // code 1
+      /** @type {TupleItem[]} */
+      const val2 = [1, 2, 3, { type: 'unbound versionstamp' }] // code 2
+      /** @type {TupleItem[]} */
+      const val3 = [1, 2, 3, { type: 'unbound versionstamp', code: 321 }] // code 321
 
       const actualStamp = await (await db_.doTn(async tn => {
         tn.setVersionstampedValue('1', val1)
@@ -370,14 +394,15 @@ withEachDb(db => describe('key value functionality', () => {
     it('errors if a real error happens', async () => {
       // This is a regression. And this is a bit of an ugly test
 
-      let watch: Watch
+      /** @type {Watch | undefined} */
+      let watch
       await assert.rejects(db.doTn(async tn => {
         tn.setReadVersion(Buffer.alloc(8)) // All zeros. This should be too old
         watch = tn.watch('x')
         await tn.get('x') // this will fail and throw.
       }))
 
-      await assert.rejects(watch!.promise)
+      await assert.rejects(/** @type {Watch} */(watch).promise)
     })
   })
 

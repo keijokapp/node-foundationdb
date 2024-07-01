@@ -1,7 +1,7 @@
 import {
   after, afterEach, beforeEach, describe,
 } from 'mocha'
-import * as fdb from '../lib'
+import * as fdb from '../lib/index.js'
 
 // We'll tuck everything behind this prefix and delete it all when the tests finish running.
 export const prefix = '__test_data__/'
@@ -10,7 +10,10 @@ export const prefix = '__test_data__/'
 // This should work with API versions 510, 520, 600, 610 and 620.
 export const testApiVersion = 630
 
-export const withEachDb = (fn: (db: fdb.Database) => void) => {
+/**
+ * @param {(db: fdb.Database) => void} fn
+ */
+export const withEachDb = fn => {
   fdb.setAPIVersion(testApiVersion)
 
   // These tests just use a single shared database cluster instance which is

@@ -1,19 +1,23 @@
-import assert from 'assert'
+import assert from 'node:assert'
 import { describe, it } from 'mocha'
-import * as fdb from '../lib'
-import { HighContentionAllocator } from '../lib/directory'
-import { defaultTransformer } from '../lib/transformer'
-import { emptyBuffer, startsWith } from '../lib/util'
-import { withEachDb } from './util'
+import { HighContentionAllocator } from '../lib/directory.js'
+import * as fdb from '../lib/index.js'
+import { defaultTransformer } from '../lib/transformer.js'
+import { emptyBuffer, startsWith } from '../lib/util.js'
+import { withEachDb } from './util.js'
 
 // The binding tester is the actual comprehensive test suite for the directory
 // layer. This mostly exists as a smoke test, and to exercise some of the API
 // surface area that the binding tester won't reach.
 withEachDb(db => describe('directory layer', () => {
   describe('high contention allocator', () => {
-    const addToSet = async (keyBuf: Buffer, set: Set<number>) => {
+    /**
+     * @param {Buffer} keyBuf
+     * @param {Set<number>} set
+     */
+    const addToSet = async (keyBuf, set) => {
       // The keys are actually numbers encoded with the tuple encoder
-      const key = fdb.encoders.tuple.unpack(keyBuf)[0] as number
+      const key = /** @type {number} */(fdb.encoders.tuple.unpack(keyBuf)[0])
 
       // console.log(key)
 
@@ -29,7 +33,8 @@ withEachDb(db => describe('directory layer', () => {
 
       const hca = new HighContentionAllocator(subspace)
 
-      const keys = new Set<number>()
+      /** @type {Set<number>} */
+      const keys = new Set()
 
       for (let i = 0; i < NUM; i++) {
         const keyBuf = await db.doTn(txn => hca.allocate(txn))
@@ -45,7 +50,8 @@ withEachDb(db => describe('directory layer', () => {
 
       const hca = new HighContentionAllocator(subspace)
 
-      const keys = new Set<number>()
+      /** @type {Set<number>} */
+      const keys = new Set()
       const work = new Array(NUM).fill(null).map(() => (async () => {
         const keyBuf = await db.doTn(txn => hca.allocate(txn))
         addToSet(keyBuf, keys)
@@ -62,7 +68,8 @@ withEachDb(db => describe('directory layer', () => {
 
       const hca = new HighContentionAllocator(subspace)
 
-      const keys = new Set<number>()
+      /** @type {Set<number>} */
+      const keys = new Set()
       const work = new Array(NUM_TXNS).fill(null).map(() => (async () => {
         const keyBufs = await db.doTn(async () => {
           // This is really mean. I'm going to concurrently try to allocate
@@ -99,7 +106,7 @@ withEachDb(db => describe('directory layer', () => {
       // Ok now can we read it back?
       const dirB = await dl.open(db, ['some', 'dir'])
       const valB = await db.at(dirB).get('item')
-      assert.strictEqual(valB!.toString(), 'xxyy')
+      assert.strictEqual(/** @type {Buffer} */(valB).toString(), 'xxyy')
 
       // // Check the val is stored in the content subspace
       assert(startsWith(dirB.getSubspace().prefix, db.subspace.at('content').prefix))
@@ -125,7 +132,7 @@ withEachDb(db => describe('directory layer', () => {
 
       const dirB = await dirA.moveTo(db, 'b')
       const val = await db.at(dirB).get('item')
-      assert.strictEqual(val!.toString(), 'xxyy')
+      assert.strictEqual(/** @type {Buffer} */(val).toString(), 'xxyy')
     })
 
     it('can remove a directory', async () => {

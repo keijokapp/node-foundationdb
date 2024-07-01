@@ -11,21 +11,29 @@
   ],
   "homepage": "https://foundationdb.org",
   "license": "MIT",
-  "main": "dist/lib/index.js",
-  "types": "dist/lib/index.d.ts",
+  "type": "module",
+  "exports": {
+    "types": "./dist/index.d.ts",
+    "import": "./lib/index.js",
+    "require": "./lib/index.js"
+  },
+  "main": "./lib/index.js",
+  "types": "./dist/index.d.ts",
   "files": [
-    "dist/lib",
-    "prebuilds",
     "binding.gyp",
+    "dist",
+    "lib/*.js",
+    "prebuilds",
     "src"
   ],
   "scripts": {
     "install": "node-gyp-build",
     "lint": "eslint lib scripts test",
-    "test": "mocha -r ts-node/register test/*.ts",
-    "prepare": "rm -rf dist && tsc -p .",
+    "prebuild": "prebuildify --napi --strip",
+    "prepare": "rm -rf dist/*.js dist/*.ts && tsc -p tsconfig.build.json && cp lib/*.d.ts dist",
     "prepublishOnly": "ls -ld prebuilds/darwin-arm64/@arbendium+foundationdb.node prebuilds/darwin-x64/@arbendium+foundationdb.node prebuilds/linux-x64/@arbendium+foundationdb.node",
-    "prebuild": "prebuildify --napi --strip"
+    "test": "mocha test/*.js",
+    "typecheck": "tsc"
   },
   "dependencies": {
     "fdb-tuple": "^1.0.0",

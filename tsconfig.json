@@ -1,12 +1,11 @@
 {
-  "compilerOptions": {
-    "target": "ES2022",
-    "module": "nodenext",
-    "lib": ["esnext"],                             /* Specify library files to be included in the compilation. */
-    "declaration": true,                   /* Generates corresponding '.d.ts' file. */
-    "sourceMap": true,                     /* Generates corresponding '.map' file. */
-    "outDir": "./dist",                        /* Redirect output structure to the directory. */
-    "strict": true,                           /* Enable all strict type-checking options. */
-    "exactOptionalPropertyTypes": true
-  }
+	"compilerOptions": {
+		"checkJs": true,
+		"exactOptionalPropertyTypes": true,
+		"module": "nodenext",
+		"noEmit": true,
+		"strict": true,
+		"target": "ES2022",
+	},
+	"include": ["lib", "scripts", "test", "eslint.config.js"]
 }
