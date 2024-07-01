@@ -118,7 +118,7 @@ template<class CtxType> static napi_status resolveFutureInMainLoop(napi_env env,
 }
 
 
-MaybeValue fdbFutureToJSPromise(napi_env env, FDBFuture *f, ExtractValueFn *extractFn) {
+MaybeValue futureToJS(napi_env env, FDBFuture *f, ExtractValueFn *extractFn) {
   // Using inheritance here because Persistent doesn't seem to like being
   // copied, and this avoids another allocation & indirection.
   struct Ctx: CtxBase<Ctx> {
@@ -163,59 +163,6 @@ MaybeValue fdbFutureToJSPromise(napi_env env, FDBFuture *f, ExtractValueFn *extr
     return wrap_err(status);
   } else return wrap_ok(promise);
 }
-
-MaybeValue fdbFutureToCallback(napi_env env, FDBFuture *f, napi_value cbFunc, ExtractValueFn *extractFn) {
-  struct Ctx: CtxBase<Ctx> {
-    napi_ref cbFunc;
-    ExtractValueFn *extractFn;
-  };
-  Ctx *ctx = new Ctx;
-
-  NAPI_OK_OR_RETURN_MAYBE(env, napi_create_reference(env, cbFunc, 1, &ctx->cbFunc));
-  ctx->extractFn = extractFn;
-
-  napi_status status = resolveFutureInMainLoop<Ctx>(env, f, ctx, [](napi_env env, FDBFuture *f, Ctx *ctx) {
-    fdb_error_t errcode = 0;
-    MaybeValue value = ctx->extractFn(env, f, &errcode);
-
-    napi_value callback;
-    NAPI_OK_OR_RETURN_STATUS(env, napi_get_reference_value(env, ctx->cbFunc, &callback));
-    NAPI_OK_OR_RETURN_STATUS(env, napi_reference_unref(env, ctx->cbFunc, NULL));
-    NAPI_OK_OR_RETURN_STATUS(env, napi_delete_reference(env, ctx->cbFunc));
-
-    size_t argc = 1; // In case of error we just won't populate argv[1].
-    napi_value argv[2] = {}; // (err, value).
-
-    if (errcode != 0) NAPI_OK_OR_RETURN_STATUS(env, wrap_fdb_error(env, errcode, &argv[0]));
-    else if (value.status != napi_ok) NAPI_OK_OR_RETURN_STATUS(env, napi_get_and_clear_last_exception(env, &argv[0]));
-    else {
-      argc = 2;
-      NAPI_OK_OR_RETURN_STATUS(env, napi_get_undefined(env, &argv[0]));
-      argv[1] = value.value;
-    }
-
-    napi_value global;
-    NAPI_OK_OR_RETURN_STATUS(env, napi_get_global(env, &global));
-    // We're discarding the return value here.
-    NAPI_OK_OR_RETURN_STATUS(env, napi_call_function(env, global, callback, argc, argv, NULL));
-
-    return napi_ok;
-  });
-  return wrap_err(status);
-}
-
-MaybeValue futureToJS(napi_env env, FDBFuture *f, napi_value cbOrNull, ExtractValueFn *extractFn) {
-  napi_valuetype type;
-  NAPI_OK_OR_RETURN_MAYBE(env, typeof_wrap(env, cbOrNull, &type));
-  if (type == napi_undefined || type == napi_null) {
-    return fdbFutureToJSPromise(env, f, extractFn);
-  } else if (type == napi_function) {
-    return fdbFutureToCallback(env, f, cbOrNull, extractFn);
-  } else {
-    return wrap_err(napi_throw_error(env, "", "Invalid callback argument call"));
-  }
-}
-
 
 // *** Watch
 
@@ -298,7 +245,7 @@ MaybeValue watchFuture(napi_env env, FDBFuture *f, bool ignoreStandardErrors) {
   ctx->ignoreStandardErrors = ignoreStandardErrors;
 
   napi_status status = resolveFutureInMainLoop<Ctx>(env, f, ctx, [](napi_env env, FDBFuture *f, Ctx *ctx) {
-    // This is cribbed from fdbFutureToJSPromise above. Bleh.
+    // This is cribbed from futureToJS above. Bleh.
     fdb_error_t errcode = fdb_future_get_error(ctx->future);
     bool success = true;
 
