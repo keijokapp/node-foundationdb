@@ -2,6 +2,10 @@
 
 Node bindings for [FoundationDB](https://www.foundationdb.org/)!
 
+This is a fork. The original [node-foundationdb](https://github.com/josephg/node-foundationdb) has become effectively unmaintaned and has a fair share of bugs, limitations and quirks. This fork includes fixes to many of these issues and keeps the bindings fresh.
+
+**This package is not drop-in compatible with the original [`foundationdb`](https://www.npmjs.com/package/foundationdb) package.** Attempting to use it as a drop-in may result in an unexpected behavior, including data loss.
+
 - [Getting started](#usage)
 - [Connecting to your database cluster](#connecting-to-your-cluster)
 - [Database Transactions](#database-transactions)
@@ -36,7 +40,7 @@ If you're on a mac, add `export DYLD_LIBRARY_PATH=/usr/local/lib` to your .zshrc
 #### Step 2
 
 ```
-npm install --save foundationdb
+npm install --save @arbendium/foundationdb
 ```
 
 #### Step 3
@@ -44,7 +48,7 @@ npm install --save foundationdb
 Use it!
 
 ```javascript
-const fdb = require('foundationdb')
+const fdb = require('@arbendium/foundationdb')
 fdb.setAPIVersion(700) // Must be called before database is opened
 
 ;(async () => {
@@ -81,7 +85,7 @@ FoundationDB servers and clients use a [cluster file](https://apple.github.io/fo
 The best way to connect to your foundationdb cluster is to just use:
 
 ```javascript
-const fdb = require('foundationdb')
+const fdb = require('@arbendium/foundationdb')
 const db = fdb.open()
 ```
 
@@ -94,7 +98,7 @@ This will look for a cluster file in:
 Alternately, you can manually specify a cluster file location:
 
 ```javascript
-const fdb = require('foundationdb')
+const fdb = require('@arbendium/foundationdb')
 const db = fdb.open('/path/to/fdb.cluster')
 ```
 
@@ -198,7 +202,7 @@ Note that `tn.set` is synchronous. All set operations are immediately visible to
 By default the key and value arguments must be either node Buffer objects or strings. You can use [key and value transformers](#key-and-value-transformation) for automatic argument encoding. If you want to embed numbers, UUIDs, or multiple fields in your keys we strongly recommend using [fdb tuple encoding](https://apple.github.io/foundationdb/data-modeling.html#tuples) for your keys:
 
 ```javascript
-const fdb = require('fdb')
+const fdb = require('@arbendium/foundationdb')
 
 const db = fdb.open()
   .withKeyEncoding(fdb.encoders.tuple)
@@ -381,7 +385,7 @@ Aliased transactions inherit their `isSnapshot` property from the object they we
 `tn.getKey` or `db.getKey` is used to get a key in the database via a key or [key selector](#key-selectors). For example:
 
 ```javascript
-const ks = require('foundationdb').keySelector
+const ks = require('@arbendium/foundationdb').keySelector
 
 const key = await db.getKey(ks.firstGreaterThan('students.')) // Get the first student key
 ```
@@ -397,7 +401,7 @@ getKey returns the key as a node buffer object unless you specify a key encoding
 This works particularly well combined with tuple encoding:
 
 ```javascript
-const fdb = require('fdb')
+const fdb = require('@arbendium/foundationdb')
 const db = fdb.open()
   .withKeyEncoding(fdb.encoders.tuple)
 
@@ -408,7 +412,7 @@ const date = key[2] // The earliest enrolment date in the database
 You can also do something like this to get & use the last key in a range. This is awkward with the API as it is right now, but its very fast & computationally efficient:
 
 ```javascript
-const fdb = require('fdb')
+const fdb = require('@arbendium/foundationdb')
 const db = fdb.open()
 
 // The next key after all the student scores
@@ -579,7 +583,7 @@ All range read functions and `getKey` let you specify keys using [key selectors]
 For example, to get a range not including the start but including the end:
 
 ```javascript
-const ks = require('foundationdb').keySelector
+const ks = require('@arbendium/foundationdb').keySelector
 
 // ...
 tn.getRange(
@@ -593,7 +597,7 @@ tn.getRange(
 You can add or subtract an offset from a key selector using `fdb.keySelector.add(sel, offset)`. This counts *in keys*. For example, to find the key thats exactly 10 keys after key `'a'`:
 
 ```javascript
-const ks = require('foundationdb').keySelector
+const ks = require('@arbendium/foundationdb').keySelector
 
 await db.getKey(ks.add(ks.firstGreaterOrEqual('a'), 10))
 ```
@@ -938,7 +942,7 @@ The javascript foundationdb tuple encoder lives in [its own library](https://git
 The simplest way to use the tuple encoder for keys is to set the key encoder in a database or subspace:
 
 ```javascript
-const fdb = require('fdb')
+const fdb = require('@arbendium/foundationdb')
 
 const db = fdb.open()
   .withKeyEncoding(fdb.encoders.tuple)
@@ -951,7 +955,7 @@ await db.set(['class', [6, 'a']], {teacher: 'fred', room: '101a'})
 Once you have a subspace with tuple encoding, you can use .at() to scope it:
 
 ```javascript
-const fdb = require('fdb')
+const fdb = require('@arbendium/foundationdb')
 const db = fdb.open()
 
 const class = fdb.root.withKeyEncoding(fdb.tuple)
@@ -1039,14 +1043,6 @@ Upgrading your database cluster without any application downtime is possible but
 Read more about the [multi-versioned client design here](https://apple.github.io/foundationdb/api-general.html#multi-version-client) and check the [the foundationdb forum](https://forums.foundationdb.org/c/using-foundationdb) for help and more information.
 
 Note that the API version number is different from the version of FDB you have installed. The API version is what you pass to `fdb.setAPIVersion`. This version number can be lower than the supported API version of foundationdb. In practice, The API version only needs to be incremented when you want to use new foundationdb features. See FDB [release notes](https://apple.github.io/foundationdb/release-notes.html) for information on what has changed between versions.
-
-
-## History
-
-These bindings are based on an old version of FDB's bindings from years ago, with contributions form @skozin and others.
-
-- The native binding code has been updated to work with modern versions of v8, and work with promises rather than callbacks.
-- The javascript code has been almost entirely rewritten. It has been modernized, ported from JS to Typescript and changed to use promises throughout.
 
 ## License
 
