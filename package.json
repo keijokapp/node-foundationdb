@@ -11,8 +11,8 @@
   ],
   "homepage": "https://foundationdb.org",
   "license": "MIT",
-  "main": "dist/lib/index.js",
-  "types": "dist/lib/index.d.ts",
+  "main": "lib/index.js",
+  "types": "lib/foundationdb.d.ts",
   "files": [
     "dist",
     "prebuilds",
@@ -22,7 +22,6 @@
   "scripts": {
     "install": "node-gyp-build",
     "test": "mocha -r ts-node/register test/*.ts",
-    "prepare": "rm -rf dist && tsc -p .",
     "prepublishOnly": "ls -ld prebuilds/darwin-arm64/node.napi.node prebuilds/darwin-x64/node.napi.node prebuilds/linux-x64/node.napi.node",
     "prebuild": "prebuildify --napi --strip"
   },
