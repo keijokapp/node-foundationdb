@@ -323,8 +323,7 @@ static napi_value commit(napi_env env, napi_callback_info info) {
 
   FDBFuture *f = fdb_transaction_commit(tr);
 
-  GET_ARGS(env, info, args, 1);
-  return futureToJS(env, f, args[0], ignoreResult).value;
+  return futureToJS(env, f, ignoreResult).value;
 }
 
 // Reset the transaction so it can be reused.
@@ -351,7 +350,7 @@ static napi_value onError(napi_env env, napi_callback_info info) {
   fdb_error_t errorCode;
   TRY_V(napi_get_value_int32(env, args[0], &errorCode));
   FDBFuture *f = fdb_transaction_on_error(tr, errorCode);
-  return futureToJS(env, f, args[1], ignoreResult).value;
+  return futureToJS(env, f, ignoreResult).value;
 }
 
 static napi_value getApproximateSize(napi_env env, napi_callback_info info) {
@@ -359,16 +358,16 @@ static napi_value getApproximateSize(napi_env env, napi_callback_info info) {
   if (UNLIKELY(tr == NULL)) return NULL;
 
   FDBFuture *f = fdb_transaction_get_approximate_size(tr);
-  return futureToJS(env, f, NULL, getInt64ToNumber).value;
+  return futureToJS(env, f, getInt64ToNumber).value;
 }
 
 
-// Get(key, isSnapshot, [cb])
+// Get(key, isSnapshot)
 static napi_value get(napi_env env, napi_callback_info info) {
   FDBTransaction *tr = (FDBTransaction *)getWrapped(env, info);
   if (UNLIKELY(tr == NULL)) return NULL;
 
-  GET_ARGS(env, info, args, 3);
+  GET_ARGS(env, info, args, 2);
 
   StringParams key;
   TRY_V(toStringParams(env, args[0], &key));
@@ -378,18 +377,18 @@ static napi_value get(napi_env env, napi_callback_info info) {
 
   FDBFuture *f = fdb_transaction_get(tr, key.str, key.len, snapshot);
   destroyStringParams(&key);
-  return futureToJS(env, f, args[2], getValue).value;
+  return futureToJS(env, f, getValue).value;
 }
 
 /*
  * This function takes a KeySelector and returns a future.
  */
-// GetKey(key, selOrEq, offset, isSnapshot, [cb])
+// GetKey(key, selOrEq, offset, isSnapshot)
 static napi_value getKey(napi_env env, napi_callback_info info) {
   FDBTransaction *tr = (FDBTransaction *)getWrapped(env, info);
   if (UNLIKELY(tr == NULL)) return NULL;
 
-  GET_ARGS(env, info, args, 5);
+  GET_ARGS(env, info, args, 4);
 
   StringParams key;
   TRY_V(toStringParams(env, args[0], &key));
@@ -405,7 +404,7 @@ static napi_value getKey(napi_env env, napi_callback_info info) {
 
   FDBFuture *f = fdb_transaction_get_key(tr, key.str, key.len, (fdb_bool_t)selectorOrEqual, selectorOffset, snapshot);
   destroyStringParams(&key);
-  return futureToJS(env, f, args[4], getKey).value;
+  return futureToJS(env, f, getKey).value;
 }
 
 // set(key, val). Syncronous.
@@ -467,14 +466,13 @@ static napi_value atomicOp(napi_env env, napi_callback_info info) {
 //   end, endOrEqual, endOffset,
 //   limit or 0, target_bytes or 0,
 //   streamingMode, iteration,
-//   snapshot, reverse,
-//   [cb]
+//   snapshot, reverse
 // )
 static napi_value getRange(napi_env env, napi_callback_info info) {
   FDBTransaction *tr = (FDBTransaction *)getWrapped(env, info);
   if (UNLIKELY(tr == NULL)) return NULL;
 
-  GET_ARGS(env, info, args, 13);
+  GET_ARGS(env, info, args, 12);
 
   StringParams start;
   TRY_V(toStringParams(env, args[0], &start));
@@ -517,7 +515,7 @@ static napi_value getRange(napi_env env, napi_callback_info info) {
   destroyStringParams(&start);
   destroyStringParams(&end);
 
-  return futureToJS(env, f, args[12], getKeyValueList).value;
+  return futureToJS(env, f, getKeyValueList).value;
 }
 
 // clearRange(start, end). Clears range [start, end).
@@ -541,7 +539,7 @@ static napi_value clearRange(napi_env env, napi_callback_info info) {
 static napi_value getEstimatedRangeSizeBytes(napi_env env, napi_callback_info info) {
   FDBTransaction *tr = (FDBTransaction *)getWrapped(env, info);
   if (UNLIKELY(tr == NULL)) return NULL;
-  GET_ARGS(env, info, args, 3);
+  GET_ARGS(env, info, args, 2);
 
   StringParams start;
   TRY_V(toStringParams(env, args[0], &start));
@@ -552,14 +550,14 @@ static napi_value getEstimatedRangeSizeBytes(napi_env env, napi_callback_info in
 
   destroyStringParams(&start);
   destroyStringParams(&end);
-  return futureToJS(env, f, args[2], getInt64ToNumber).value;
+  return futureToJS(env, f, getInt64ToNumber).value;
 }
 
 // getRangeSplitPoints(start, end, count).
 static napi_value getRangeSplitPoints(napi_env env, napi_callback_info info) {
   FDBTransaction *tr = (FDBTransaction *)getWrapped(env, info);
   if (UNLIKELY(tr == NULL)) return NULL;
-  GET_ARGS(env, info, args, 4);
+  GET_ARGS(env, info, args, 3);
 
   StringParams start;
   TRY_V(toStringParams(env, args[0], &start));
@@ -573,7 +571,7 @@ static napi_value getRangeSplitPoints(napi_env env, napi_callback_info info) {
   destroyStringParams(&start);
   destroyStringParams(&end);
 
-  return futureToJS(env, f, args[3], getKeyList).value;
+  return futureToJS(env, f, getKeyList).value;
 }
 
 // watch("somekey", ignoreStandardErrors) -> {cancel(), promise}. This does
@@ -632,10 +630,9 @@ static napi_value addWriteConflictRange(napi_env env, napi_callback_info info) {
 static napi_value getReadVersion(napi_env env, napi_callback_info info) {
   FDBTransaction *tr = (FDBTransaction *)getWrapped(env, info);
   if (UNLIKELY(tr == NULL)) return NULL;
-  GET_ARGS(env, info, args, 1);
 
   FDBFuture *f = fdb_transaction_get_read_version(tr);
-  return futureToJS(env, f, args[0], getInt64ToBuffer).value;
+  return futureToJS(env, f, getInt64ToBuffer).value;
 }
 
 // setReadVersion(version)
@@ -674,24 +671,23 @@ static napi_value getCommittedVersion(napi_env env, napi_callback_info info) {
 static napi_value getVersionstamp(napi_env env, napi_callback_info info) {
   FDBTransaction *tr = (FDBTransaction *)getWrapped(env, info);
   if (UNLIKELY(tr == NULL)) return NULL;
-  GET_ARGS(env, info, args, 1);
 
   FDBFuture *f = fdb_transaction_get_versionstamp(tr);
-  return futureToJS(env, f, args[0], getKey).value;
+  return futureToJS(env, f, getKey).value;
 }
 
-// getAddressesForKey("somekey", [cb])
+// getAddressesForKey("somekey")
 static napi_value getAddressesForKey(napi_env env, napi_callback_info info) {
   FDBTransaction *tr = (FDBTransaction *)getWrapped(env, info);
   if (UNLIKELY(tr == NULL)) return NULL;
-  GET_ARGS(env, info, args, 2);
+  GET_ARGS(env, info, args, 1);
 
   StringParams key;
   TRY_V(toStringParams(env, args[0], &key));
 
   FDBFuture *f = fdb_transaction_get_addresses_for_key(tr, key.str, key.len);
   destroyStringParams(&key);
-  return futureToJS(env, f, args[1], getStringArray).value;
+  return futureToJS(env, f, getStringArray).value;
 }
 
 
