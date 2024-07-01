@@ -5,7 +5,7 @@ import { TransactionOptionCode } from "./opts.g";
 import { concat2, startsWith, strInc, asBuf } from "./util";
 import Subspace, { root } from "./subspace";
 import { inspect } from "util";
-import { NativeValue, NativeTransaction } from "./native";
+import { NativeValue } from "./native";
 // import FDBError from './error'
 
 export class DirectoryError extends Error {
@@ -126,7 +126,7 @@ const window_size = (start: number) => (
     : 8192
 )
 
-const hcaLock = new WeakMap<NativeTransaction, Promise<void>>()
+const hcaLock = new WeakMap<object, Promise<void>>()
 
 async function synchronized(tn: TxnAny, block: () => Promise<void>) {
   // Nodejs is single threaded and the FDB transaction system protects us
@@ -137,7 +137,7 @@ async function synchronized(tn: TxnAny, block: () => Promise<void>) {
 
   // We're using tn._tn because that references the underlying fdb transaction
   // object, shared between all scoped versions of the transaction.
-  const ref = tn._tn
+  const ref = tn.context
 
   const lock = hcaLock.get(ref)
 
