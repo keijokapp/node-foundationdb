@@ -255,7 +255,7 @@ withEachDb(db => describe('key value functionality', () => {
 
       const value = await db.doTransaction(async tn => {
         const value = [tuple.unboundVersionstamp()]
-        tn.scopedTo(subspace).setVersionstampedValue('some-key', value)
+        tn.at(subspace).setVersionstampedValue('some-key', value)
         return value
       })
 

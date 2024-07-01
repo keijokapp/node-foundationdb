@@ -1,3 +1,5 @@
+export const id = <T>(x: T) => x
+
 // String increment. Find the next string (well, buffer) after this buffer.
 export const strInc = (val: string | Buffer): Buffer => {
   const buf = typeof val === 'string' ? Buffer.from(val) : val

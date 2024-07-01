@@ -203,11 +203,6 @@ export default class Transaction<KeyIn = NativeValue, KeyOut = Buffer, ValIn = N
     return new Transaction(this._tn, this.isSnapshot, hasSubspace.getSubspace(), this._ctx)
   }
 
-  /** @deprecated - use transaction.at(db) instead. */
-  scopedTo<CKI, CKO, CVI, CVO>(db: Database<CKI, CKO, CVI, CVO>): Transaction<CKI, CKO, CVI, CVO> {
-    return this.at(db)
-  }
-
   /** Get the current subspace */
   getSubspace() { return this.subspace }
 
