@@ -1,10 +1,7 @@
 import 'mocha'
 import * as fdb from '../lib'
 import * as assert from 'assert'
-import {
-  numXF,
-  withEachDb,
-} from './util'
+import { withEachDb } from './util'
 import {HighContentionAllocator} from '../lib/directory'
 import { emptyBuffer, startsWith } from '../lib/util'
 import { defaultTransformer } from '../lib/transformer'
@@ -38,7 +35,6 @@ withEachDb(db => describe('directory layer', () => {
         addToSet(keyBuf, keys)
       }
       assert.strictEqual(keys.size, NUM)
-      // console.log(await hca._debugGetInternalState(db))
     })
 
     it('allocates unique values in concurrent transactions', async function() {
@@ -54,7 +50,6 @@ withEachDb(db => describe('directory layer', () => {
       })())
       await Promise.all(work)
       assert.strictEqual(keys.size, NUM)
-      // console.log(await hca._debugGetInternalState(db))
     })
 
     it('allocates unique values in big transactions', async function() {
@@ -78,7 +73,6 @@ withEachDb(db => describe('directory layer', () => {
 
       await Promise.all(work)
       assert.strictEqual(keys.size, NUM_TXNS * ALLOC_PER_TXN)
-      // console.log(await hca._debugGetInternalState(db))
     })
   })
 

@@ -6,7 +6,6 @@ import { emptyBuffer } from './util'
 // relative to other versionstamped key / values inside the transaction.
 export type UnboundStamp = {data: Buffer, stampPos: number, codePos?: number}
 
-
 const packedBufLen = (dataLen: number, isKey: boolean): number => {
   const use4ByteOffset = apiVersion.get()! >= 520
   return dataLen + (use4ByteOffset ? 4 : (isKey ? 2 : 0))
@@ -30,18 +29,19 @@ const packVersionstampRaw = (data: Buffer, pos: number, isKey: boolean, prealloc
   if (use4ByteOffset) result.writeUInt32LE(pos, result.length - 4)
   else if (isKey) result.writeUInt16LE(pos, result.length - 2)
 
-  // console.log('packVersionstampRaw', result)
   return result
 }
+
 // Exported for binding tester. TODO: Consider moving this into its own file and exporting it generally.
 export const packVersionstamp = ({data, stampPos}: UnboundStamp, isKey: boolean): Buffer => (
   packVersionstampRaw(data, stampPos, isKey, false)
 )
+
 export const packPrefixedVersionstamp = (prefix: Buffer, {data, stampPos}: UnboundStamp, isKey: boolean): Buffer => {
-  // console.log('pl', prefix.length, 'dl', data.length, 'to', packedBufLen(prefix.length + data.length, isKey))
   const buf = Buffer.allocUnsafe(packedBufLen(prefix.length + data.length, isKey))
   prefix.copy(buf)
   data.copy(buf, prefix.length)
+
   return packVersionstampRaw(buf, prefix.length + stampPos, isKey, true)
 }
 
@@ -49,6 +49,6 @@ export const packVersionstampPrefixSuffix = (prefix: Buffer = emptyBuffer, suffi
   const buf = Buffer.allocUnsafe(packedBufLen(prefix.length + 10 + suffix.length, isKey))
   prefix.copy(buf)
   suffix.copy(buf, prefix.length + 10)
-  // console.log('prelen', prefix.length, 'suf len', suffix.length, 'len', buf.length)
+
   return packVersionstampRaw(buf, prefix.length, isKey, true)
 }

@@ -1,5 +1,4 @@
 #!/usr/bin/env -S node --enable-source-maps
-// #!/usr/bin/env -S node -r ts-node/register --enable-source-maps
 
 // This file implements the foundationdb binding API tester fuzzer backend
 // described here:
@@ -22,7 +21,7 @@
 
 import * as fdb from '../lib'
 import {
-  Transaction, Database, Directory, DirectoryLayer, Subspace,
+  Transaction, Database, Directory, DirectoryError, DirectoryLayer, Subspace,
   tuple, TupleItem,
   keySelector,
   StreamingMode, MutationType,
@@ -30,10 +29,8 @@ import {
   TransactionOptionCode,
 } from '../lib'
 
-// TODO: Expose these in lib
 import {packPrefixedVersionstamp} from '../lib/versionstamp'
 import { concat2, emptyBuffer, startsWith } from '../lib/util'
-import {DirectoryError} from '../lib/directory'
 
 import * as assert from 'assert'
 import * as nodeUtil from 'util'
@@ -50,12 +47,6 @@ const transactions: {[k: string]: Transaction} = {}
 // 'RESULT_NOT_PRESENT' -> 'ResultNotPresent'
 const toUpperCamelCase = (str: string) => (
   str.toLowerCase().replace(/(^\w|_\w)/g, x => x[x.length-1].toUpperCase())
-)
-
-const toStr = (val: any): string => (
-  (typeof val === 'object' && val.data) ? toStr(val.data)
-  : Buffer.isBuffer(val) ? val.toString('ascii')
-  : nodeUtil.inspect(val)
 )
 
 const tupleStrict: Transformer<TupleItem | TupleItem[], TupleItem[]> = {
@@ -104,7 +95,7 @@ const makeMachine = (db: Database, initialName: Buffer) => {
     const {instrId} = stack[stack.length-1]
     let val = await popValue()
     assert(pred(val), `${threadColor('Unexpected type')} of ${nodeUtil.inspect(val, false, undefined, true)} inserted at ${instrId} - espected ${typeLabel}`)
-    return val as any as T // :(
+    return val as any as T
   }
   const popStr = () => chk<string>(val => typeof val === 'string', 'string')
   const popBool = () => chk<boolean>(val => val === 0 || val === 1, 'bool').then(x => !!x)
@@ -146,7 +137,6 @@ const makeMachine = (db: Database, initialName: Buffer) => {
     if (data) pushValue(wrapP(data))
   }
 
-  // const orNone = (val: Buffer | null) => val == null ? 'RESULT_NOT_PRESENT' : val
   const bufBeginsWith = (buf: Buffer, prefix: Buffer) => (
     prefix.length <= buf.length && buf.compare(prefix, 0, prefix.length, 0, prefix.length) === 0
   )
@@ -166,21 +156,6 @@ const makeMachine = (db: Database, initialName: Buffer) => {
     const val = dirList[dirIdx] as Directory | DirectoryLayer
     assert(val instanceof Directory || val instanceof DirectoryLayer)
     return val
-  }
-  // const errOrNull = async <T>(fn: (() => Promise<T>)): Promise<T | null> => {
-  //   try {
-  //     const val = fn()
-  //     return val
-  //   } catch (e) {
-  //     return null
-  //   }
-  // }
-  const errOrNull = async <T>(promiseOrFn: Promise<T> | (() => Promise<T>)): Promise<T | null> => {
-    try {
-      return await (typeof promiseOrFn === 'function' ? promiseOrFn() : promiseOrFn)
-    } catch (e) {
-      return null
-    }
   }
 
   const operations: {[op: string]: (operand: Database | Transaction, ...args: TupleItem[]) => any} = {
@@ -249,18 +224,12 @@ const makeMachine = (db: Database, initialName: Buffer) => {
       tnName = await popBuffer()
       if (verbose) console.log('using tn', tnName)
       if (transactions[tnNameKey()] == null) transactions[tnNameKey()] = db.rawCreateTransaction()
-      // transactions[tnNameKey()].setOption(fdb.TransactionOptionCode.TransactionLoggingEnable, Buffer.from('x '+instrId))
     },
     async ON_ERROR(tn) {
       const code = Number(await popInt())
       pushValue(wrapP((<Transaction>tn).rawOnError(code)))
     },
 
-    // Transaction read functions
-    // async get(oper) {
-    //   const key = await popBuffer()
-    //   pushValue(await wrapP(oper.get(key)))
-    // },
     async GET(oper) {
       const key = await popBuffer()
       pushValue(wrapP(oper.get(key)))
@@ -271,10 +240,6 @@ const makeMachine = (db: Database, initialName: Buffer) => {
 
       const result = ((await oper.getKey(keySel)) || Buffer.from([])) as Buffer
 
-      // if (verbose) {
-      //   console.log('get_key prefix', nodeUtil.inspect(prefix.toString('ascii')), result!.compare(prefix))
-      //   console.log('get_key result', nodeUtil.inspect(result!.toString('ascii')), result!.compare(prefix))
-      // }
       if (result!.equals(Buffer.from('RESULT_NOT_PRESENT'))) return result // Gross.
 
       // result starts with prefix.
@@ -288,13 +253,12 @@ const makeMachine = (db: Database, initialName: Buffer) => {
       const limit = Number(await popInt())
       const reverse = await popBool()
       const streamingMode = await popInt() as StreamingMode
-      // console.log('get range', instrId, beginKey, endKey, limit, reverse, 'mode', streamingMode, oper)
 
       const results = await oper.getRangeAll(
         keySelector.from(beginKey), keySelector.from(endKey),
         {streamingMode, limit, reverse}
       )
-      // console.log('get range result', results)
+
       pushTupleItem(tuple.pack(Array.prototype.concat.apply([], results)))
     },
     async GET_RANGE_STARTS_WITH(oper) {
@@ -351,8 +315,6 @@ const makeMachine = (db: Database, initialName: Buffer) => {
       const val = await popStrBuf()
       if (verbose) {
         console.log('SET', key, val)
-        // const key2 = tuple.unpack(key as Buffer, true).map(v => Buffer.isBuffer(v) ? v.toString() : v)
-        // if (key2[1] !== 'workspace') console.error('SET', key2, val)
       }
       maybePush(oper.set(key, val))
     },
@@ -420,25 +382,15 @@ const makeMachine = (db: Database, initialName: Buffer) => {
     // Tuple operations
     async TUPLE_PACK() {
       pushValue(tuple.pack(await popNValues()))
-      // pushValue(shittyBake(tuple.pack(await popNValues())))
     },
     async TUPLE_PACK_WITH_VERSIONSTAMP() {
       const prefix = await popBuffer()
-      // console.log('prefix', prefix.toString('hex'), prefix.length)
       try {
         const value = tuple.packUnboundVersionstamp(await popNValues())
-        // console.log('a', value)
-        // console.log('_', value.data.toString('hex'), value.data.length)
-        // console.log('b', packPrefixedVersionStamp(prefix, value, true).toString('hex'))
         pushLiteral('OK')
-        // pushValue(Buffer.concat([]))
-        // pushValue(Buffer.concat([prefix, (value as UnboundStamp).data, ]))
-        // const pack = packVersionStamp({data: Buffer.concat([prefix, value.data]), value.stampPos + prefix.length, true, false)
         const pack = packPrefixedVersionstamp(prefix, value, true)
-        // console.log('packed', pack.toString('hex'))
         pushValue(pack)
       } catch (e: any) {
-        // console.log('c', e)
         // TODO: Add userspace error codes to these.
         if (e.message === 'No incomplete versionstamp included in tuple pack with versionstamp') {
           pushLiteral('ERROR: NONE')
@@ -450,8 +402,6 @@ const makeMachine = (db: Database, initialName: Buffer) => {
     async TUPLE_UNPACK() {
       const packed = await popBuffer()
       for (const item of tuple.unpack(packed, true)) {
-        // const pack = tuple.pack([item])
-        // pushValue(isPackUnbound(pack) ? null : pack)
         pushValue(tuple.pack([item]))
       }
     },
@@ -495,13 +445,7 @@ const makeMachine = (db: Database, initialName: Buffer) => {
 
       const dv = new DataView(new ArrayBuffer(4))
       dv.setFloat32(0, val.value, false)
-      // console.log('bt decode_float', val, Buffer.from(dv.buffer))
       pushValue(Buffer.from(dv.buffer))
-
-      // const buf = Buffer.alloc(4)
-      // buf.writeFloatBE(val.value, 0)
-      // pushValue(buf)
-      // pushValue(val.rawEncoding)
     },
     async DECODE_DOUBLE() {
       const val = await popValue() as {type: 'double', value: number, rawEncoding: Buffer}
@@ -510,17 +454,10 @@ const makeMachine = (db: Database, initialName: Buffer) => {
       const dv = new DataView(new ArrayBuffer(8))
       dv.setFloat64(0, val.value, false)
       pushValue(Buffer.from(dv.buffer))
-      // console.log('bt decode_double', val, Buffer.from(dv.buffer))
-
-      // const buf = Buffer.alloc(8)
-      // buf.writeDoubleBE(val.value, 0)
-      // pushValue(buf)
-      // pushValue(val.rawEncoding)
     },
 
     // Thread Operations
     async START_THREAD() {
-      // Note we don't wait here - this is run concurrently.
       const prefix = await popBuffer()
       runFromPrefix(db, prefix)
     },
@@ -537,7 +474,6 @@ const makeMachine = (db: Database, initialName: Buffer) => {
 
     // TODO: Invoke mocha here
     UNIT_TESTS() {},
-
 
     // **** Directory stuff ****
     async DIRECTORY_CREATE_SUBSPACE() {
@@ -580,7 +516,7 @@ const makeMachine = (db: Database, initialName: Buffer) => {
       const prefix = (await popValue()) as Buffer | null || undefined
 
       if (verbose) console.log('path', path, layer, prefix)
-      // console.log(dirList[dirIdx])
+
       const dir = await getCurrentDirectoryOrLayer().create(oper, path, layer || undefined, prefix)
       dirList.push(dir)
     },
@@ -618,8 +554,6 @@ const makeMachine = (db: Database, initialName: Buffer) => {
       // There's no moveTo method to call in DirectoryLayer - but this is what it would do if there were.
       if (dir instanceof DirectoryLayer) throw new DirectoryError('The root directory cannot be moved.')
 
-      // console.log('move_to', dirIdx, dirList[dirIdx])
-      // console.log('move to', newAbsPath)
       dirList.push(await getCurrentDirectory().moveTo(oper, newAbsPath))
     },
     async DIRECTORY_REMOVE(oper) {
@@ -696,7 +630,7 @@ const makeMachine = (db: Database, initialName: Buffer) => {
       let children = exists ? await dir.listAll(oper) : []
       let layer = dir instanceof Directory ? dir.getLayerRaw() : emptyBuffer
 
-      const scopedOper = (oper instanceof Database) ? oper.at(logSubspace) : oper.at(logSubspace) // lolscript.
+      const scopedOper = (oper instanceof Database) ? oper.at(logSubspace) : oper.at(logSubspace)
       await scopedOper.set('path', dir.getPath())
       await scopedOper.set('layer', layer)
       await scopedOper.set('exists', exists ? 1 : 0)
@@ -722,21 +656,11 @@ const makeMachine = (db: Database, initialName: Buffer) => {
       const instruction = fdb.tuple.unpack(instrBuf, true)
       let [opcode, ...oper] = instruction as [string, TupleItem[]]
 
-      // const txnOps = [
-      //   'NEW_TRANSACTION',
-      //   'USE_TRANSACTION',
-      //   'ON_ERROR',
-      //   'COMMIT',
-      //   'CANCEL',
-      //   'RESET',
-      // ]
-      // if (verbose || (instrId > 25000 && instrId < 28523 && txnOps.includes(opcode))) {
       if (verbose) {
         if (oper.length) console.log(chalk.magenta(opcode as string), instrId, threadColor(initialName.toString('ascii')), oper, instrBuf.toString('hex'))
         else console.log(chalk.magenta(opcode as string), instrId, threadColor(initialName.toString('ascii')))
       }
       if (log) log.write(`${opcode} ${instrId} ${stack.length}\n`)
-
 
       let operand: Transaction | Database = transactions[tnNameKey()]
       if (opcode.endsWith('_SNAPSHOT')) {
@@ -746,9 +670,6 @@ const makeMachine = (db: Database, initialName: Buffer) => {
         opcode = opcode.slice(0, -'_DATABASE'.length)
         operand = db
       }
-
-      // verbose = (instrId > 27234-10) && (instrId < 27234+10)
-      // verbose = (instrId > 12700 && instrId < 12710) || (instrId > 12770 && instrId < 12788)
 
       try {
         if (operations[opcode] == null) {
@@ -806,13 +727,11 @@ const run = async (db: Database, prefix: Buffer, log?: fs.WriteStream) => {
   const instructions = await db.getRangeAll(begin, end)
   if (verbose) console.log(`Executing ${instructions.length} instructions from ${prefix.toString()}`)
 
-  for (const [key, value] of instructions) {
-    // console.log(key, value)
+  for (const [, value] of instructions) {
     await machine.run(value as Buffer, log)
     // TODO: consider inserting tiny sleeps to increase concurrency.
   }
   instructionsRun += instructions.length
-  // console.log(`Thread ${prefix.toString()} complete`)
 }
 
 async function runFromPrefix(db: Database, prefix: Buffer, log?: fs.WriteStream) {

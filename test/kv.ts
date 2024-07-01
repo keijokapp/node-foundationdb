@@ -7,7 +7,7 @@ import {
   bufToNum,
   withEachDb,
 } from './util'
-import {MutationType, tuple, TupleItem, encoders, Watch, keySelector} from '../lib'
+import {tuple, TupleItem, encoders, Watch, keySelector} from '../lib'
 import { Transformer } from '../lib/transformer'
 
 process.on('unhandledRejection', err => { throw err })
@@ -247,7 +247,7 @@ withEachDb(db => describe('key value functionality', () => {
 
       const value = await db.doTransaction(async tn => {
         const value = [tuple.unboundVersionstamp()]
-        tn.scopedTo(subspace).setVersionstampedValue('some-key', value)
+        tn.at(subspace).setVersionstampedValue('some-key', value)
         return value
       })
 

@@ -21,10 +21,6 @@ import {OptionData} from './opts'
 
 `)
 
-
-const toLowerCamelCase = (str: string) => str.replace(/(^\w|_\w)/g, c =>
-  c.length == 1 ? c : c[1].toUpperCase()
-)
 const toUpperCamelCase = (str: string) => str.replace(/(^\w|_\w)/g, c =>
   c.length == 1 ? c.toUpperCase() : c[1].toUpperCase()
 )
@@ -63,7 +59,6 @@ parseString(xml, (err, result) => {
 
     let enumName = name
 
-    // console.log(name)
     if (name.endsWith('Option')) {
       line(`export type ${name}s = {`)
       options.forEach(({name, type, paramDescription, deprecated}) => {
@@ -110,9 +105,6 @@ parseString(xml, (err, result) => {
       line(`}\n`)
     }
   })
-
-
-  //console.log(JSON.stringify(result, null, 2))
 
   output.end()
   console.log('wrote', outFilename)
