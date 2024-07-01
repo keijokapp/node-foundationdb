@@ -15,7 +15,6 @@ import {
   StreamingMode,
   MutationType
 } from './opts.g'
-import Database from './database'
 
 import {
   Transformer,
@@ -123,14 +122,11 @@ export default class Transaction<KeyIn = NativeValue, KeyOut = Buffer, ValIn = N
    */
   constructor(tn: NativeTransaction, snapshot: boolean,
       subspace: Subspace<KeyIn, KeyOut, ValIn, ValOut>,
-      // keyEncoding: Transformer<KeyIn, KeyOut>, valueEncoding: Transformer<ValIn, ValOut>,
       ctx?: TxnCtx) {
     this._tn = tn
 
     this.isSnapshot = snapshot
     this.subspace = subspace
-
-    // this._root = root || this
 
     this._ctx = ctx ? ctx : {
       nextCode: 0,
@@ -170,7 +166,8 @@ export default class Transaction<KeyIn = NativeValue, KeyOut = Buffer, ValIn = N
         transformer.bakeVersionstamp!(item, stamp, code))
       )
     }
-    return result // Ok, success.
+
+    return result
   }
 
   /**
@@ -198,14 +195,9 @@ export default class Transaction<KeyIn = NativeValue, KeyOut = Buffer, ValIn = N
 
   /**
    * Create a shallow copy of the transaction in the specified subspace (or database, transaction, or directory).
-  */
+   */
   at<CKI, CKO, CVI, CVO>(hasSubspace: GetSubspace<CKI, CKO, CVI, CVO>): Transaction<CKI, CKO, CVI, CVO> {
     return new Transaction(this._tn, this.isSnapshot, hasSubspace.getSubspace(), this._ctx)
-  }
-
-  /** @deprecated - use transaction.at(db) instead. */
-  scopedTo<CKI, CKO, CVI, CVO>(db: Database<CKI, CKO, CVI, CVO>): Transaction<CKI, CKO, CVI, CVO> {
-    return this.at(db)
   }
 
   /** Get the current subspace */
@@ -226,6 +218,7 @@ export default class Transaction<KeyIn = NativeValue, KeyOut = Buffer, ValIn = N
     this._assertValid()
     this._tn.reset()
   }
+
   rawCancel() {
     this._assertValid()
     this._tn.cancel()
@@ -752,7 +745,6 @@ export default class Transaction<KeyIn = NativeValue, KeyOut = Buffer, ValIn = N
   // This sets the key [prefix, 10 bytes versionstamp, suffix] to value.
   setVersionstampedKeyBuf(prefix: Buffer | undefined, suffix: Buffer | undefined, value: ValIn) {
     const key = packVersionstampPrefixSuffix(prefix, suffix, true)
-    // console.log('key', key)
     this.atomicOpNative(MutationType.SetVersionstampedKey, key, this.subspace.packValue(value))
   }
 
@@ -846,16 +838,4 @@ export default class Transaction<KeyIn = NativeValue, KeyOut = Buffer, ValIn = N
 
     return this._tn.getApproximateSize()
   }
-
-  // This packs the value by prefixing the version stamp to the
-  // valueEncoding's packed version of the value.
-  // This is intended for use with getPackedVersionstampedValue.
-  //
-  // If your key transformer sometimes returns an unbound value for this key
-  // (eg using tuples), just call set(key, value).
-  // setVersionstampedValueBuf(key: KeyIn, value: Buffer, pos: number = 0) {
-  //   // const valPack = packVersionstampedValue(asBuf(this._valueEncoding.pack(value)), pos)
-  //   const valPack = packVersionstampRaw(value, pos, true)
-  //   this.atomicOpKB(MutationType.SetVersionstampedValue, key, valPack)
-  // }
 }
