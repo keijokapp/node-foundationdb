@@ -4,8 +4,6 @@ import * as fdb from '../lib'
 // We'll tuck everything behind this prefix and delete it all when the tests finish running.
 export const prefix = '__test_data__/'
 
-// export const prefixBuf = (key: Buffer) => Buffer.concat([Buffer.from(prefix), key])
-
 // Using big endian numbers because they're lexographically sorted correctly.
 export const bufToNum = (b: Buffer | null, def: number = 0) => b ? b.readInt32BE(0) : def
 export const numToBuf = (n: number) => {
@@ -36,16 +34,8 @@ export const withEachDb = (fn: (db: fdb.Database) => void) => {
   // reopen the database but its probably fine like this.
   const db = fdb.open().at(prefix)
 
-  // const s = defaultSubspace
-  // const y = s.at(null, fdb.tuple)
-  // const y2 = y.at(null, undefined, fdb.tuple)
-
-  // const dy = db.at(null, fdb.tuple)
-  // const dy2 = dy.at(null, undefined, fdb.tuple)
-
   after(() => {
     db.close()
-    // fdb.stopNetworkSync()
   })
 
   // We need to do this both before and after tests run to clean up any mess
