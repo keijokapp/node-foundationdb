@@ -18,7 +18,7 @@ const next = <Key>(sel: KeySelector<Key>) => add(sel, 1)
 const prev = <Key>(sel: KeySelector<Key>) => add(sel, -1)
 
 // From the [docs](https://apple.github.io/foundationdb/developer-guide.html#key-selectors):
-// 
+//
 // To resolve these key selectors FoundationDB first finds the last key less
 // than the reference key (or equal to the reference key, if the equality flag
 // is true), then moves forward a number of keys equal to the offset (or

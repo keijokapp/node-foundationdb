@@ -53,7 +53,7 @@ napi_status wrap_fdb_error(napi_env env, fdb_error_t code, napi_value* result) {
   MaybeValue err = create_error(env, code);
   if (err.status == napi_ok) *result = err.value;
   return throw_if_not_ok(env, err.status);
-    
+
   // napi_value errCode;
   // NAPI_OK_OR_RETURN_STATUS(env, napi_create_int32(env, fdbErrCode, &errCode));
   // napi_value errStr;
@@ -67,7 +67,7 @@ napi_status wrap_fdb_error(napi_env env, fdb_error_t code, napi_value* result) {
 
 void throw_fdb_error(napi_env env, fdb_error_t fdbErrCode) {
   napi_value error;
-  if (throw_if_not_ok(env, wrap_fdb_error(env, fdbErrCode, &error)) == napi_pending_exception) return; 
+  if (throw_if_not_ok(env, wrap_fdb_error(env, fdbErrCode, &error)) == napi_pending_exception) return;
   throw_if_not_ok(env, napi_throw(env, error));
   // There'll be a pending exception after this no matter what. No need to return a status code.
 }

@@ -1,10 +1,10 @@
 #!/usr/bin/env -S node -r ts-node/register
 
 // This is not used as part of the project!
-// 
+//
 // This is a script to generate opts.g.ts from the vexillographer fdb options file.
 // It is only necessary to re-run this when FDB adds / deprecates options.
-// 
+//
 // Usage: node dist/lib/gentsopts.js <path to foundationdb checkout>
 import fs = require('fs')
 import xml2js = require('xml2js') // I could type this but its not important enough.

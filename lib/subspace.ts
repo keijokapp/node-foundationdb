@@ -60,7 +60,7 @@ export default class Subspace<KeyIn = NativeValue, KeyOut = Buffer, ValIn = Nati
   withKeyEncoding<CKI, CKO>(keyXf: Transformer<CKI, CKO>): Subspace<CKI, CKO, ValIn, ValOut> {
     return new Subspace(this.prefix, keyXf, this.valueXf)
   }
-  
+
   withValueEncoding<CVI, CVO>(valXf: Transformer<CVI, CVO>): Subspace<KeyIn, KeyOut, CVI, CVO> {
     return new Subspace(this.prefix, this.keyXf, valXf)
   }

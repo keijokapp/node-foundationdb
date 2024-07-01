@@ -43,7 +43,7 @@ export type NetworkOptions = {
   client_buggify_section_activated_probability?: undefined | number  // probability expressed as a percentage between 0 and 100
   client_buggify_section_fired_probability?: undefined | number  // probability expressed as a percentage between 0 and 100
   distributed_client_tracer?: undefined | string  // Distributed tracer type. Choose from none, log_file, or network_lossy
-  client_tmp_dir?: undefined | string  // Client directory for temporary files. 
+  client_tmp_dir?: undefined | string  // Client directory for temporary files.
   supported_client_versions?: undefined | string  // [release version],[source version],[protocol version];...
   external_client?: undefined | true
   external_client_transport_id?: undefined | number  // Transport ID for the child connection

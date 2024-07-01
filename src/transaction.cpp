@@ -219,7 +219,7 @@ static MaybeValue getKeyValueList(napi_env env, FDBFuture* future, fdb_error_t* 
   for(int i = 0; i < len; i++) {
     napi_value pair;
     TRY(napi_create_array_with_length(env, 2, &pair));
-    
+
     // TODO: Again, should be able to avoid this copy with clever use of references.
     napi_value keyBuf;
     TRY(napi_create_buffer_copy(env, kv[i].key_length, kv[i].key, NULL, &keyBuf));
@@ -495,7 +495,7 @@ static napi_value getRange(napi_env env, napi_callback_info info) {
   TRY_V(napi_get_value_int32(env, args[6], &limit));
   int32_t target_bytes;
   TRY_V(napi_get_value_int32(env, args[7], &target_bytes));
-  
+
   int32_t modeInt;
   TRY_V(napi_get_value_int32(env, args[8], &modeInt));
   FDBStreamingMode mode = (FDBStreamingMode)modeInt;
