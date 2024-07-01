@@ -1,0 +1,10 @@
+{
+	"compilerOptions": {
+		"esModuleInterop": true,
+		"module": "commonjs",
+		"noEmit": false,
+		"outDir": "dist",
+	},
+	"extends": "./tsconfig.json",
+	"include": ["lib"],
+}

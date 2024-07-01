@@ -1,8 +1,8 @@
-import * as assert from 'assert'
+import assert from 'node:assert'
 import { describe, it } from 'mocha'
-import * as fdb from '../lib'
-import mod from '../lib/native'
-import { testApiVersion } from './util'
+import * as fdb from '../lib/index.js'
+import mod from '../lib/native.js'
+import { testApiVersion } from './util.js'
 
 fdb.setAPIVersion(testApiVersion)
 

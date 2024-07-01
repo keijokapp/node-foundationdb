@@ -6,13 +6,14 @@ export default [
   ...base,
   {
     rules: {
+      '@typescript-eslint/ban-ts-comment': ['error', {
+        'ts-check': true, 'ts-expect-error': false, 'ts-ignore': true, 'ts-nocheck': true
+      }],
       '@typescript-eslint/no-explicit-any': 'off',
       '@typescript-eslint/no-unused-vars': 'error',
       '@typescript-eslint/no-use-before-define': ['error', { functions: false, classes: false, variables: false }],
-      'import/extensions': 'off',
       'import/no-unresolved': 'off',
       'stylistic/indent': ['error', 2, { SwitchCase: 1 }],
-      'stylistic/lines-between-class-members': 'off',
       'stylistic/max-len': 'off',
       'stylistic/member-delimiter-style': ['error', {
         multiline: {
@@ -32,13 +33,13 @@ export default [
     }
   },
   {
-    files: ['lib/opts.g.ts'],
+    files: ['lib/opts.g.js'],
     rules: {
       'stylistic/comma-dangle': 'off'
     }
   },
   {
-    files: ['eslint.config.mjs', 'scripts/**', 'test/**'],
+    files: ['eslint.config.js', 'scripts/**', 'test/**'],
     rules: {
       'import/no-extraneous-dependencies': ['error', { devDependencies: true }],
       'no-console': 'off'

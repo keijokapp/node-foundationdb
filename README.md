@@ -50,26 +50,24 @@ import * as fdb from '@arbendium/foundationdb'
 
 fdb.setAPIVersion(700) // Must be called before database is opened
 
-;(async () => {
-  const dbRoot = fdb.open() // or open('/path/to/fdb.cluster')
+const dbRoot = fdb.open() // or open('/path/to/fdb.cluster')
 
-  // Scope all of your application's data inside the 'myapp' directory in your database
-  const db = dbRoot.at(await fdb.directory.createOrOpen(dbRoot, 'myapp'))
-    .withKeyEncoding(fdb.encoders.tuple) // automatically encode & decode keys using tuples
-    .withValueEncoding(fdb.encoders.json) // and values using JSON
+// Scope all of your application's data inside the 'myapp' directory in your database
+const db = dbRoot.at(await fdb.directory.createOrOpen(dbRoot, 'myapp'))
+  .withKeyEncoding(fdb.encoders.tuple) // automatically encode & decode keys using tuples
+  .withValueEncoding(fdb.encoders.json) // and values using JSON
 
-  await db.doTransaction(async tn => {
-    console.log('Book 123 is', await tn.get(['books', 123])) // Book 123 is undefined
+await db.doTransaction(async tn => {
+  console.log('Book 123 is', await tn.get(['books', 123])) // Book 123 is undefined
 
-    tn.set(['books', 123], {
-      title: 'Reinventing Organizations',
-      author: 'Laloux'
-    })
+  tn.set(['books', 123], {
+    title: 'Reinventing Organizations',
+    author: 'Laloux'
   })
+})
 
-  console.log('now book 123 is', await db.get(['books', 123])) // shorthand for db.doTransaction(...)
-  // now book 123 is { title: 'Reinventing Organizations', author: 'Laloux' }
-})()
+console.log('now book 123 is', await db.get(['books', 123])) // shorthand for db.doTransaction(...)
+// now book 123 is { title: 'Reinventing Organizations', author: 'Laloux' }
 ```
 
 > Note: You must set the FDB API version before using this library. You can specify any version number ≤ the version of FDB you are using in your cluster. If in doubt, set it to 620.

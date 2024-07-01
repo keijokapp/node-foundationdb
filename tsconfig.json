@@ -1,14 +1,11 @@
 {
-  "compilerOptions": {
-    "target": "ES2022",
-    "module": "commonjs",                     /* Specify module code generation: 'none', 'commonjs', 'amd', 'system', 'umd', 'es2015', or 'ESNext'. */
-    "lib": ["esnext"],                             /* Specify library files to be included in the compilation. */
-    "declaration": true,                   /* Generates corresponding '.d.ts' file. */
-    "sourceMap": true,                     /* Generates corresponding '.map' file. */
-    "outDir": "./dist",                        /* Redirect output structure to the directory. */
-    "strict": true,                           /* Enable all strict type-checking options. */
-    "moduleResolution": "node",            /* Specify module resolution strategy: 'node' (Node.js) or 'classic' (TypeScript pre-1.6). */
-    "stripInternal": true,
-    "exactOptionalPropertyTypes": true
-  }
+	"compilerOptions": {
+		"checkJs": true,
+		"exactOptionalPropertyTypes": true,
+		"module": "preserve",
+		"noEmit": true,
+		"strict": true,
+		"target": "ES2022",
+	},
+	"include": ["lib", "scripts", "test", "eslint.config.js"]
 }

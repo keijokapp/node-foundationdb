@@ -1,10 +1,11 @@
-import * as assert from 'assert'
+import assert from 'node:assert'
 import { beforeEach, describe, it } from 'mocha'
-import * as fdb from '../lib'
-import { withEachDb } from './util'
+import * as fdb from '../lib/index.js'
+import { withEachDb } from './util.js'
 
 withEachDb(db => describe('key value functionality', () => {
-  const batchToStrUnprefix = (batch: [string | Buffer, string | Buffer][]) => batch.map(([k, v]) => [k.toString(), v.toString()])
+  /** @param {[string | Buffer, string | Buffer][]} batch */
+  const batchToStrUnprefix = batch => batch.map(([k, v]) => [k.toString(), v.toString()])
 
   const prefill = async () => {
     const _db = db.at(undefined, fdb.encoders.int32BE, fdb.encoders.int32BE)

@@ -1,5 +1,5 @@
-import type { StreamingMode } from './opts.g.ts'
-import type Subspace from './subspace.ts'
+import type { StreamingMode } from './opts.g.js'
+import type Subspace from './subspace.js'
 
 export interface DirectoryLayerOpts {
   /** The prefix for directory metadata nodes. Defaults to '\xfe' */
