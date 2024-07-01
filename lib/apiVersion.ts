@@ -26,7 +26,7 @@ export function set(version: number, headerVersion?: number) {
       throw Error(`Cannot use foundationdb protocol version ${version} > ${MAX_VERSION}. This version of node-foundationdb only supports protocol versions <= ${MAX_VERSION}.
 
 Please update node-foundationdb if you haven't done so then file a ticket:
-https://github.com/josephg/node-foundationdb/issues
+https://github.com/keijokapp/node-foundationdb/issues
 
 Until this is fixed, use FDB API version ${MAX_VERSION}.
 `)
