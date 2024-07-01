@@ -6,9 +6,6 @@ import {MutationType, StreamingMode} from './opts.g'
 
 export type NativeValue = string | Buffer
 
-export type Callback<T> = (err: FDBError | null, results?: T) => void
-
-
 export type KVList = {
   results: [Buffer, Buffer][], // [key, value] pair.
   more: boolean,
@@ -26,20 +23,16 @@ export interface NativeTransaction {
   setOption(code: number, param: string | number | Buffer | null): void
 
   commit(): Promise<void>
-  commit(cb: Callback<void>): void
   reset(): void
   cancel(): void
-  onError(code: number, cb: Callback<void>): void
   onError(code: number): Promise<void>
 
   getApproximateSize(): Promise<number>
 
   get(key: NativeValue, isSnapshot: boolean): Promise<Buffer | undefined>
-  get(key: NativeValue, isSnapshot: boolean, cb: Callback<Buffer | undefined>): void
   // getKey always returns a value - but it will return the empty buffer or a
   // buffer starting in '\xff' if there's no other keys to find.
   getKey(key: NativeValue, orEqual: boolean, offset: number, isSnapshot: boolean): Promise<Buffer>
-  getKey(key: NativeValue, orEqual: boolean, offset: number, isSnapshot: boolean, cb: Callback<Buffer>): void
   set(key: NativeValue, val: NativeValue): void
   clear(key: NativeValue): void
 
@@ -51,13 +44,6 @@ export interface NativeTransaction {
     limit: number, target_bytes: number,
     mode: StreamingMode, iter: number, isSnapshot: boolean, reverse: boolean
   ): Promise<KVList>
-
-  getRange(
-    start: NativeValue, beginOrEq: boolean, beginOffset: number,
-    end: NativeValue, endOrEq: boolean, endOffset: number,
-    limit: number, target_bytes: number,
-    mode: StreamingMode, iter: number, isSnapshot: boolean, reverse: boolean, cb: Callback<KVList>
-  ): void
 
   clearRange(start: NativeValue, end: NativeValue): void
 
@@ -71,11 +57,9 @@ export interface NativeTransaction {
 
   setReadVersion(v: Version): void
   getReadVersion(): Promise<Version>
-  getReadVersion(cb: Callback<Version>): void
   getCommittedVersion(): Version
 
   getVersionstamp(): Promise<Buffer>
-  getVersionstamp(cb: Callback<Buffer>): void
 
   getAddressesForKey(key: NativeValue): string[]
 }
