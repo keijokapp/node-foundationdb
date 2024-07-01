@@ -23,7 +23,7 @@ const packVersionstampRaw = (data: Buffer, pos: number, isKey: boolean, prealloc
     throw Error('API version <520 do not support versionstamps in a value at a non-zero offset')
   }
 
-  const result = preallocated ? data : Buffer.alloc(packedBufLen(data.length, isKey))
+  const result = preallocated ? data : Buffer.allocUnsafe(packedBufLen(data.length, isKey))
   if (!preallocated) data.copy(result, 0)
 
   if (use4ByteOffset) result.writeUInt32LE(pos, result.length - 4)
@@ -38,7 +38,7 @@ export const packVersionstamp = ({data, stampPos}: UnboundStamp, isKey: boolean)
 )
 export const packPrefixedVersionstamp = (prefix: Buffer, {data, stampPos}: UnboundStamp, isKey: boolean): Buffer => {
   // console.log('pl', prefix.length, 'dl', data.length, 'to', packedBufLen(prefix.length + data.length, isKey))
-  const buf = Buffer.alloc(packedBufLen(prefix.length + data.length, isKey))
+  const buf = Buffer.allocUnsafe(packedBufLen(prefix.length + data.length, isKey))
   prefix.copy(buf)
   data.copy(buf, prefix.length)
   return packVersionstampRaw(buf, prefix.length + stampPos, isKey, true)
@@ -46,7 +46,7 @@ export const packPrefixedVersionstamp = (prefix: Buffer, {data, stampPos}: Unbou
 
 const zeroBuf = Buffer.allocUnsafe(0)
 export const packVersionstampPrefixSuffix = (prefix: Buffer = zeroBuf, suffix: Buffer = zeroBuf, isKey: boolean): Buffer => {
-  const buf = Buffer.alloc(packedBufLen(prefix.length + 10 + suffix.length, isKey))
+  const buf = Buffer.allocUnsafe(packedBufLen(prefix.length + 10 + suffix.length, isKey))
   prefix.copy(buf)
   suffix.copy(buf, prefix.length + 10)
   // console.log('prelen', prefix.length, 'suf len', suffix.length, 'len', buf.length)
