@@ -352,13 +352,13 @@ export default class Transaction<KeyIn = NativeValue, KeyOut = Buffer, ValIn = N
   }
 
   getEstimatedRangeSizeBytes(start?: KeyIn, end?: KeyIn): Promise<number> {
-    const range = this.subspace.packRange(start, end, true)
+    const range = this.subspace.packRange(start, end)
 
     return this._tn.getEstimatedRangeSizeBytes(range.begin, range.end)
   }
 
   getRangeSplitPoints(start: KeyIn | undefined, end: KeyIn | undefined, chunkSize: number): Promise<KeyOut[]> {
-    const range = this.subspace.packRange(start, end, true)
+    const range = this.subspace.packRange(start, end)
 
     return this._tn.getRangeSplitPoints(range.begin, range.end, chunkSize).then(results => (
       results.map(r => this.subspace.unpackKey(r))
@@ -595,7 +595,7 @@ export default class Transaction<KeyIn = NativeValue, KeyOut = Buffer, ValIn = N
   }
 
   addReadConflictRange(start?: KeyIn, end?: KeyIn) {
-    const range = this.subspace.packRange(start, end, true)
+    const range = this.subspace.packRange(start, end)
     this._tn.addReadConflictRange(range.begin, range.end)
   }
   addReadConflictRangeStartsWith(prefix: KeyIn) {
@@ -608,7 +608,7 @@ export default class Transaction<KeyIn = NativeValue, KeyOut = Buffer, ValIn = N
   }
 
   addWriteConflictRange(start?: KeyIn, end?: KeyIn) {
-    const range = this.subspace.packRange(start, end, true)
+    const range = this.subspace.packRange(start, end)
     this._tn.addWriteConflictRange(range.begin, range.end)
   }
   addWriteConflictRangeStartsWith(prefix: KeyIn) {
