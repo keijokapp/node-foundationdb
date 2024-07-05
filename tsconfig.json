@@ -1,18 +1,12 @@
 {
   "compilerOptions": {
-    /* Basic Options */
-    // Node 8 LTS is no longer supported, so we should be able to safely target es2018 here:
-    // https://node.green/#ES2018
-    "target": "ES2022",                          /* Specify ECMAScript target version: 'ES3' (default), 'ES5', 'ES2015', 'ES2016', 'ES2017','ES2018' or 'ESNEXT'. */
-    "module": "commonjs",                     /* Specify module code generation: 'none', 'commonjs', 'amd', 'system', 'umd', 'es2015', or 'ESNext'. */
-    "lib": ["esnext"],                             /* Specify library files to be included in the compilation. */
-    "declaration": true,                   /* Generates corresponding '.d.ts' file. */
-    "sourceMap": true,                     /* Generates corresponding '.map' file. */
-    "outDir": "./dist",                        /* Redirect output structure to the directory. */
-    "strict": true,                           /* Enable all strict type-checking options. */
-    "moduleResolution": "node",            /* Specify module resolution strategy: 'node' (Node.js) or 'classic' (TypeScript pre-1.6). */
-    "allowSyntheticDefaultImports": true,  /* Allow default imports from modules with no default export. This does not affect code emit, just typechecking. */
-    "stripInternal": true,
-    "exactOptionalPropertyTypes": true
-  }
+    "allowJs": true,
+    "allowSyntheticDefaultImports": true,
+    "exactOptionalPropertyTypes": true,
+    "module": "nodenext",
+    "moduleResolution": "nodenext",
+    "noEmit": true,
+    "strict": true
+  },
+  "include": ["./lib/*"]
 }

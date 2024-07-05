@@ -15,7 +15,7 @@
 // 2. cp (build directory)/bindings/python/fdb/fdboptions.py bindings/python/fdb/
 // 3. Add this line to bindings/bindingtester/known_testers.py:
 //
-// 'node': Tester('node', '/home/seph/src/node-foundationdb/dist/scripts/bindingtester.js', 53, 500, 720, types=ALL_TYPES),
+// 'node': Tester('node', '/home/seph/src/node-foundationdb/scripts/bindingtester.js', 53, 500, 720, types=ALL_TYPES),
 //
 // 4. Use the run_tester_loop.sh script to run the bindings tester. You will need to comment out the other bindings
 //    and add 'node'.

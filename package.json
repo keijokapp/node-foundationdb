@@ -1,4 +1,5 @@
 {
+  "type": "module",
   "name": "@arbendium/foundationdb",
   "version": "0.0.0",
   "description": "Node.js bindings for the FoundationDB database",
@@ -11,18 +12,16 @@
   ],
   "homepage": "https://foundationdb.org",
   "license": "MIT",
-  "main": "dist/lib/index.js",
-  "types": "dist/lib/index.d.ts",
+  "exports": "./lib/index.js",
   "files": [
-    "dist",
-    "prebuilds",
     "binding.gyp",
+    "lib",
+    "prebuilds",
     "src"
   ],
   "scripts": {
     "install": "node-gyp-build",
     "test": "mocha -r ts-node/register test/*.ts",
-    "prepare": "rm -rf dist && tsc -p .",
     "prepublishOnly": "ls -ld prebuilds/darwin-arm64/foundationdb.node prebuilds/darwin-x64/foundationdb.node prebuilds/linux-x64/foundationdb.node",
     "prebuild": "prebuildify --napi --strip"
   },
