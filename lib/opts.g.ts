@@ -12,6 +12,7 @@ export type NetworkOptions = {
   trace_clock_source?: undefined | string  // Trace clock source
   trace_file_identifier?: undefined | string  // The identifier that will be part of all trace file names
   trace_share_among_client_threads?: undefined | true
+  trace_initialize_on_setup?: undefined | true
   trace_partial_file_suffix?: undefined | string  // Append this suffix to partially written log files. When a log file is complete, it is renamed to remove the suffix. No separator is added between the file and the suffix. If you want to add a file extension, you should include the separator - e.g. '.tmp' instead of 'tmp' to add the 'tmp' extension.
   knob?: undefined | string  // knob_name=knob_value
   TLS_plugin?: undefined | string // DEPRECATED
@@ -27,6 +28,7 @@ export type NetworkOptions = {
   TLS_ca_bytes?: undefined | Buffer  // ca bundle
   TLS_ca_path?: undefined | string  // file path
   TLS_password?: undefined | string  // key passphrase
+  TLS_disable_plaintext_connection?: undefined | true
   disable_multi_version_client_api?: undefined | true
   callbacks_on_external_threads?: undefined | true
   external_client_library?: undefined | string  // path to client library
@@ -34,6 +36,9 @@ export type NetworkOptions = {
   disable_local_client?: undefined | true
   client_threads_per_version?: undefined | number  // Number of client threads to be spawned.  Each cluster will be serviced by a single client thread.
   future_version_client_library?: undefined | string  // path to client library
+  retain_client_library_copies?: undefined | true
+  ignore_external_client_failures?: undefined | true
+  fail_incompatible_client?: undefined | true
   disable_client_statistics_logging?: undefined | true
   enable_slow_task_profiling?: undefined | true // DEPRECATED
   enable_run_loop_profiling?: undefined | true
@@ -111,6 +116,12 @@ export enum NetworkOptionCode {
   TraceShareAmongClientThreads = 37,
 
   /**
+   * Initialize trace files on network setup, determine the local IP later.
+   * Otherwise tracing is initialized when opening the first database.
+   */
+  TraceInitializeOnSetup = 38,
+
+  /**
    * Set file suffix for partially written log files.
    */
   TracePartialFileSuffix = 39,
@@ -182,6 +193,12 @@ export enum NetworkOptionCode {
   TLSPassword = 54,
 
   /**
+   * Prevent client from connecting to a non-TLS endpoint by throwing
+   * network connection failed error.
+   */
+  TLSDisablePlaintextConnection = 55,
+
+  /**
    * Disables the multi-version client API and instead uses the local
    * client directly. Must be set before setting up the network.
    */
@@ -230,6 +247,23 @@ export enum NetworkOptionCode {
    * protocol. This option can be used testing purposes only!
    */
   FutureVersionClientLibrary = 66,
+
+  /**
+   * Retain temporary external client library copies that are created for
+   * enabling multi-threading.
+   */
+  RetainClientLibraryCopies = 67,
+
+  /**
+   * Ignore the failure to initialize some of the external clients
+   */
+  IgnoreExternalClientFailures = 68,
+
+  /**
+   * Fail with an error if there is no client matching the server version
+   * the client is connecting to
+   */
+  FailIncompatibleClient = 69,
 
   /**
    * Disables logging of client statistics, such as sampled transaction
@@ -325,8 +359,10 @@ export type DatabaseOptions = {
   transaction_include_port_in_address?: undefined | true
   transaction_automatic_idempotency?: undefined | true
   transaction_bypass_unreadable?: undefined | true
+  transaction_used_during_commit_protection_disable?: undefined | true
+  transaction_report_conflicting_keys?: undefined | true
   use_config_database?: undefined | true
-  test_causal_read_risky?: undefined | true
+  test_causal_read_risky?: undefined | number  // integer between 0 and 100 expressing the probability a client will verify it can't read stale data
 }
 
 export enum DatabaseOptionCode {
@@ -443,14 +479,31 @@ export enum DatabaseOptionCode {
   TransactionBypassUnreadable = 700,
 
   /**
+   * By default, operations that are performed on a transaction while it is
+   * being committed will not only fail themselves, but they will attempt
+   * to fail other in-flight operations (such as the commit) as well. This
+   * behavior is intended to help developers discover situations where
+   * operations could be unintentionally executed after the transaction has
+   * been reset. Setting this option removes that protection, causing only
+   * the offending operation to fail.
+   */
+  TransactionUsedDuringCommitProtectionDisable = 701,
+
+  /**
+   * Enables conflicting key reporting on all transactions, allowing them
+   * to retrieve the keys that are conflicting with other transactions.
+   */
+  TransactionReportConflictingKeys = 702,
+
+  /**
    * Use configuration database.
    */
   UseConfigDatabase = 800,
 
   /**
-   * An integer between 0 and 100 (default is 0) expressing the probability
-   * that a client will verify it can't read stale data whenever it detects
-   * a recovery.
+   * Enables verification of causal read risky by checking whether clients
+   * are able to read stale data when they detect a recovery, and logging
+   * an error if so.
    */
   TestCausalReadRisky = 900,
 
@@ -466,6 +519,11 @@ export type TransactionOptions = {
   check_writes_enable?: undefined | true
   read_your_writes_disable?: undefined | true
   read_ahead_disable?: undefined | true // DEPRECATED
+  read_server_side_cache_enable?: undefined | true
+  read_server_side_cache_disable?: undefined | true
+  read_priority_normal?: undefined | true
+  read_priority_low?: undefined | true
+  read_priority_high?: undefined | true
   durability_datacenter?: undefined | true
   durability_risky?: undefined | true
   durability_dev_null_is_web_scale?: undefined | true // DEPRECATED
@@ -475,6 +533,7 @@ export type TransactionOptions = {
   access_system_keys?: undefined | true
   read_system_keys?: undefined | true
   raw_access?: undefined | true
+  bypass_storage_quota?: undefined | true
   debug_dump?: undefined | true
   debug_retry_logging?: undefined | string  // Optional transaction name
   transaction_logging_enable?: undefined | string // DEPRECATED
@@ -500,12 +559,14 @@ export type TransactionOptions = {
   special_key_space_enable_writes?: undefined | true
   tag?: undefined | string  // String identifier used to associated this transaction with a throttling group. Must not exceed 16 characters.
   auto_throttle_tag?: undefined | string  // String identifier used to associated this transaction with a throttling group. Must not exceed 16 characters.
-  span_parent?: undefined | Buffer  // A byte string of length 16 used to associate the span of this transaction with a parent
+  span_parent?: undefined | Buffer  // A serialized binary byte string of length 33 used to associate the span of this transaction with a parent
   expensive_clear_cost_estimation_enable?: undefined | true
   bypass_unreadable?: undefined | true
   use_grv_cache?: undefined | true
   skip_grv_cache?: undefined | true
   authorization_token?: undefined | string  // A JSON Web Token authorized to access data belonging to one or more tenants, indicated by 'tenants' claim of the token's payload.
+  enable_replica_consistency_check?: undefined | true
+  consistency_check_required_replicas?: undefined | number  // Number of storage replicas over which the load balancer consistency check is done.
 }
 
 export enum TransactionOptionCode {
@@ -553,18 +614,49 @@ export enum TransactionOptionCode {
 
   /**
    * Reads performed by a transaction will not see any prior mutations that
-   * occured in that transaction, instead seeing the value which was in the
-   * database at the transaction's read version. This option may provide a
-   * small performance benefit for the client, but also disables a number
-   * of client-side optimizations which are beneficial for transactions
-   * which tend to read and write the same keys within a single
-   * transaction. It is an error to set this option after performing any
-   * reads or writes on the transaction.
+   * occurred in that transaction, instead seeing the value which was in
+   * the database at the transaction's read version. This option may
+   * provide a small performance benefit for the client, but also disables
+   * a number of client-side optimizations which are beneficial for
+   * transactions which tend to read and write the same keys within a
+   * single transaction. It is an error to set this option after performing
+   * any reads or writes on the transaction.
    */
   ReadYourWritesDisable = 51,
 
   // DEPRECATED
   ReadAheadDisable = 52,
+
+  /**
+   * Storage server should cache disk blocks needed for subsequent read
+   * requests in this transaction.  This is the default behavior.
+   */
+  ReadServerSideCacheEnable = 507,
+
+  /**
+   * Storage server should not cache disk blocks needed for subsequent read
+   * requests in this transaction.  This can be used to avoid cache
+   * pollution for reads not expected to be repeated.
+   */
+  ReadServerSideCacheDisable = 508,
+
+  /**
+   * Use normal read priority for subsequent read requests in this
+   * transaction.  This is the default read priority.
+   */
+  ReadPriorityNormal = 509,
+
+  /**
+   * Use low read priority for subsequent read requests in this
+   * transaction.
+   */
+  ReadPriorityLow = 510,
+
+  /**
+   * Use high read priority for subsequent read requests in this
+   * transaction.
+   */
+  ReadPriorityHigh = 511,
 
   DurabilityDatacenter = 110,
 
@@ -613,6 +705,13 @@ export enum TransactionOptionCode {
    * is on.
    */
   RawAccess = 303,
+
+  /**
+   * Allows this transaction to bypass storage quota enforcement. Should
+   * only be used for transactions that directly or indirectly decrease the
+   * size of the tenant group's data.
+   */
+  BypassStorageQuota = 304,
 
   DebugDump = 400,
 
@@ -726,7 +825,9 @@ export enum TransactionOptionCode {
    * Associate this transaction with this ID for the purpose of checking
    * whether or not this transaction has already committed. Must be at
    * least 16 bytes and less than 256 bytes. This feature is in development
-   * and not ready for general use.
+   * and not ready for general use. Unless the automatic_idempotency option
+   * is set after this option, the client will not automatically attempt to
+   * remove this id from the cluster after a successful commit.
    */
   IdempotencyId = 504,
 
@@ -827,7 +928,10 @@ export enum TransactionOptionCode {
 
   /**
    * Adds a parent to the Span of this transaction. Used for transaction
-   * tracing. A span can be identified with any 16 bytes
+   * tracing. A span can be identified with a 33 bytes serialized binary
+   * format which consists of: 8 bytes protocol version, e.g.
+   * ``0x0FDB00B073000000LL`` in little-endian format, 16 bytes trace id, 8
+   * bytes span id, 1 byte set to 1 if sampling is enabled
    */
   SpanParent = 900,
 
@@ -865,6 +969,21 @@ export enum TransactionOptionCode {
    * subsequent tenant-aware requests are authorized
    */
   AuthorizationToken = 2000,
+
+  /**
+   * Enables replica consistency check, which compares the results returned
+   * by storage server replicas (as many as specified by
+   * consistency_check_required_replicas option) for a given read request,
+   * in client-side load balancer.
+   */
+  EnableReplicaConsistencyCheck = 4000,
+
+  /**
+   * Specifies the number of storage server replica results that the load
+   * balancer needs to compare when enable_replica_consistency_check option
+   * is set.
+   */
+  ConsistencyCheckRequiredReplicas = 4001,
 
 }
 
@@ -1186,6 +1305,12 @@ export const networkOptionData: OptionData = {
     type: 'none',
   },
 
+  trace_initialize_on_setup: {
+    code: 38,
+    description: "Initialize trace files on network setup, determine the local IP later. Otherwise tracing is initialized when opening the first database.",
+    type: 'none',
+  },
+
   trace_partial_file_suffix: {
     code: 39,
     description: "Set file suffix for partially written log files.",
@@ -1290,6 +1415,12 @@ export const networkOptionData: OptionData = {
     paramDescription: "key passphrase",
   },
 
+  TLS_disable_plaintext_connection: {
+    code: 55,
+    description: "Prevent client from connecting to a non-TLS endpoint by throwing network connection failed error.",
+    type: 'none',
+  },
+
   disable_multi_version_client_api: {
     code: 60,
     description: "Disables the multi-version client API and instead uses the local client directly. Must be set before setting up the network.",
@@ -1334,6 +1465,24 @@ export const networkOptionData: OptionData = {
     description: "Adds an external client library to be used with a future version protocol. This option can be used testing purposes only!",
     type: 'string',
     paramDescription: "path to client library",
+  },
+
+  retain_client_library_copies: {
+    code: 67,
+    description: "Retain temporary external client library copies that are created for enabling multi-threading.",
+    type: 'none',
+  },
+
+  ignore_external_client_failures: {
+    code: 68,
+    description: "Ignore the failure to initialize some of the external clients",
+    type: 'none',
+  },
+
+  fail_incompatible_client: {
+    code: 69,
+    description: "Fail with an error if there is no client matching the server version the client is connecting to",
+    type: 'none',
   },
 
   disable_client_statistics_logging: {
@@ -1523,6 +1672,18 @@ export const databaseOptionData: OptionData = {
     type: 'none',
   },
 
+  transaction_used_during_commit_protection_disable: {
+    code: 701,
+    description: "By default, operations that are performed on a transaction while it is being committed will not only fail themselves, but they will attempt to fail other in-flight operations (such as the commit) as well. This behavior is intended to help developers discover situations where operations could be unintentionally executed after the transaction has been reset. Setting this option removes that protection, causing only the offending operation to fail.",
+    type: 'none',
+  },
+
+  transaction_report_conflicting_keys: {
+    code: 702,
+    description: "Enables conflicting key reporting on all transactions, allowing them to retrieve the keys that are conflicting with other transactions.",
+    type: 'none',
+  },
+
   use_config_database: {
     code: 800,
     description: "Use configuration database.",
@@ -1531,8 +1692,9 @@ export const databaseOptionData: OptionData = {
 
   test_causal_read_risky: {
     code: 900,
-    description: "An integer between 0 and 100 (default is 0) expressing the probability that a client will verify it can't read stale data whenever it detects a recovery.",
-    type: 'none',
+    description: "Enables verification of causal read risky by checking whether clients are able to read stale data when they detect a recovery, and logging an error if so.",
+    type: 'int',
+    paramDescription: "integer between 0 and 100 expressing the probability a client will verify it can't read stale data",
   },
 
 }
@@ -1582,7 +1744,7 @@ export const transactionOptionData: OptionData = {
 
   read_your_writes_disable: {
     code: 51,
-    description: "Reads performed by a transaction will not see any prior mutations that occured in that transaction, instead seeing the value which was in the database at the transaction's read version. This option may provide a small performance benefit for the client, but also disables a number of client-side optimizations which are beneficial for transactions which tend to read and write the same keys within a single transaction. It is an error to set this option after performing any reads or writes on the transaction.",
+    description: "Reads performed by a transaction will not see any prior mutations that occurred in that transaction, instead seeing the value which was in the database at the transaction's read version. This option may provide a small performance benefit for the client, but also disables a number of client-side optimizations which are beneficial for transactions which tend to read and write the same keys within a single transaction. It is an error to set this option after performing any reads or writes on the transaction.",
     type: 'none',
   },
 
@@ -1590,6 +1752,36 @@ export const transactionOptionData: OptionData = {
     code: 52,
     description: "Deprecated",
     deprecated: true,
+    type: 'none',
+  },
+
+  read_server_side_cache_enable: {
+    code: 507,
+    description: "Storage server should cache disk blocks needed for subsequent read requests in this transaction.  This is the default behavior.",
+    type: 'none',
+  },
+
+  read_server_side_cache_disable: {
+    code: 508,
+    description: "Storage server should not cache disk blocks needed for subsequent read requests in this transaction.  This can be used to avoid cache pollution for reads not expected to be repeated.",
+    type: 'none',
+  },
+
+  read_priority_normal: {
+    code: 509,
+    description: "Use normal read priority for subsequent read requests in this transaction.  This is the default read priority.",
+    type: 'none',
+  },
+
+  read_priority_low: {
+    code: 510,
+    description: "Use low read priority for subsequent read requests in this transaction.",
+    type: 'none',
+  },
+
+  read_priority_high: {
+    code: 511,
+    description: "Use high read priority for subsequent read requests in this transaction.",
     type: 'none',
   },
 
@@ -1645,6 +1837,12 @@ export const transactionOptionData: OptionData = {
   raw_access: {
     code: 303,
     description: "Allows this transaction to access the raw key-space when tenant mode is on.",
+    type: 'none',
+  },
+
+  bypass_storage_quota: {
+    code: 304,
+    description: "Allows this transaction to bypass storage quota enforcement. Should only be used for transactions that directly or indirectly decrease the size of the tenant group's data.",
     type: 'none',
   },
 
@@ -1725,7 +1923,7 @@ export const transactionOptionData: OptionData = {
 
   idempotency_id: {
     code: 504,
-    description: "Associate this transaction with this ID for the purpose of checking whether or not this transaction has already committed. Must be at least 16 bytes and less than 256 bytes. This feature is in development and not ready for general use.",
+    description: "Associate this transaction with this ID for the purpose of checking whether or not this transaction has already committed. Must be at least 16 bytes and less than 256 bytes. This feature is in development and not ready for general use. Unless the automatic_idempotency option is set after this option, the client will not automatically attempt to remove this id from the cluster after a successful commit.",
     type: 'string',
     paramDescription: "Unique ID",
   },
@@ -1812,9 +2010,9 @@ export const transactionOptionData: OptionData = {
 
   span_parent: {
     code: 900,
-    description: "Adds a parent to the Span of this transaction. Used for transaction tracing. A span can be identified with any 16 bytes",
+    description: "Adds a parent to the Span of this transaction. Used for transaction tracing. A span can be identified with a 33 bytes serialized binary format which consists of: 8 bytes protocol version, e.g. ``0x0FDB00B073000000LL`` in little-endian format, 16 bytes trace id, 8 bytes span id, 1 byte set to 1 if sampling is enabled",
     type: 'bytes',
-    paramDescription: "A byte string of length 16 used to associate the span of this transaction with a parent",
+    paramDescription: "A serialized binary byte string of length 33 used to associate the span of this transaction with a parent",
   },
 
   expensive_clear_cost_estimation_enable: {
@@ -1846,6 +2044,19 @@ export const transactionOptionData: OptionData = {
     description: "Attach given authorization token to the transaction such that subsequent tenant-aware requests are authorized",
     type: 'string',
     paramDescription: "A JSON Web Token authorized to access data belonging to one or more tenants, indicated by 'tenants' claim of the token's payload.",
+  },
+
+  enable_replica_consistency_check: {
+    code: 4000,
+    description: "Enables replica consistency check, which compares the results returned by storage server replicas (as many as specified by consistency_check_required_replicas option) for a given read request, in client-side load balancer.",
+    type: 'none',
+  },
+
+  consistency_check_required_replicas: {
+    code: 4001,
+    description: "Specifies the number of storage server replica results that the load balancer needs to compare when enable_replica_consistency_check option is set.",
+    type: 'int',
+    paramDescription: "Number of storage replicas over which the load balancer consistency check is done.",
   },
 
 }
