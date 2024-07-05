@@ -1,47 +1,59 @@
-#!/usr/bin/env -S node -r ts-node/register
+#!/usr/bin/env node
+
+// @ts-check
 
 // This is not used as part of the project!
 //
 // This is a script to generate opts.g.ts from the vexillographer fdb options file.
 // It is only necessary to re-run this when FDB adds / deprecates options.
 //
-// Usage: node dist/lib/gentsopts.js <path to foundationdb checkout>
-import fs = require('fs')
-import xml2js = require('xml2js') // I could type this but its not important enough.
+// Usage: node scripts/gentsopts.js <path to foundationdb checkout>
+import fs from 'fs'
+import xml2js from 'xml2js'
 
 const {parseString} = xml2js
+
+/**
+ * @typedef {'string' | 'int' | 'bytes' | 'none'} OptionType
+ */
+
 const fdbSourceLocation = process.argv[2] ?? (process.env.HOME + '/3rdparty/foundationdb')
 const xml = fs.readFileSync(fdbSourceLocation + '/fdbclient/vexillographer/fdb.options', 'utf8')
 
-const outFilename = 'lib/opts.g.ts'
+const outFilename = 'lib/opts.g.js'
 const output = fs.createWriteStream(outFilename)
 
 const comment = '\/\/' // I'm really sad that this is needed.
-output.write(`${comment} This file is auto-generated from gentsopts.ts. Do not edit.
-import {OptionData} from './opts'
+output.write(`// @ts-check
+
+${comment} This file is auto-generated from gentsopts.js. Do not edit.
 
 `)
 
-const toUpperCamelCase = (str: string) => str.replace(/(^\w|_\w)/g, c =>
+/** @param {string} str @returns {string}  */
+const toUpperCamelCase = (str) => str.replace(/(^\w|_\w)/g, c =>
   c.length == 1 ? c.toUpperCase() : c[1].toUpperCase()
 )
-const toLowerFirst = (str: string) => str[0].toLowerCase() + str.slice(1)
+/** @param {string} str @returns {string}  */
+const toLowerFirst = (str) => str[0].toLowerCase() + str.slice(1)
 
-const splitLines = (str: string) => str.split(/\s*(.{10,70})(?:\s+|$)/).filter(x => x)
+/** @param {string} str @returns {string[]}  */
+const splitLines = (str) => str.split(/\s*(.{10,70})(?:\s+|$)/).filter(x => x)
 
-type OptionType = 'string' | 'int' | 'bytes' | 'none'
-const readOptions = (data: any[]) => (
-  data.map(({$:opt}: {$: any}) => ({
-    name: opt.name as string,
-    code: opt.code as number,
-    description: opt.description as string | undefined,
-    paramDescription: opt.paramDescription as string | undefined,
-    type: (opt.paramType ? opt.paramType.toLowerCase() : 'none') as OptionType,
+/** @param {any[]} data */
+const readOptions = (data) => (
+  data.map(({$:opt}) => ({
+    name: /** @type {string} */(opt.name),
+    code: /** @type {number} */(opt.code),
+    description: /** @type {string | undefined} */(opt.description),
+    paramDescription: /** @type {string | undefined} */(opt.paramDescription),
+    type: /** @type {OptionType} */(opt.paramType ? opt.paramType.toLowerCase() : 'none'),
     deprecated: (opt.description && opt.description.toLowerCase() === 'deprecated')
   }))
 )
 
-const typeToTs = (type: 'string' | 'int' | 'bytes' | 'none') => ({
+/** @type {(type: OptionType) => string} */
+const typeToTs = (type) => ({
   string: 'string',
   int: 'number',
   bytes: 'Buffer',
@@ -51,29 +63,35 @@ const typeToTs = (type: 'string' | 'int' | 'bytes' | 'none') => ({
 parseString(xml, (err, result) => {
   if (err) throw err
 
-  const line = (str: string = '') => output.write(str + '\n')
+  /** @param {string} [str] */
+  const line = (str = '') => output.write(str + '\n')
 
   // First do all the normal user-visible stuff
-  result.Options.Scope.forEach((scope: any) => {
-    const name: string = scope.$.name
+  result.Options.Scope.forEach(/** @param {any} scope */(scope) => {
+    const name = /** @type {string} */(scope.$.name)
     const options = readOptions(scope.Option)
 
     let enumName = name
 
     if (name.endsWith('Option')) {
-      line(`export type ${name}s = {`)
+      line(`/**`)
+      line(` * @typedef {{`)
       options.forEach(({name, type, paramDescription, deprecated}) => {
-        output.write(`  ${name}?: undefined | ${typeToTs(type)}`)
+        output.write(` *  ${name}?: undefined | ${typeToTs(type)}`)
         if (deprecated) output.write(` ${comment} DEPRECATED`)
         else if (paramDescription) output.write(`  ${comment} ${paramDescription}`)
         line()
       })
-      line(`}\n`)
+      line(` * }} ${name}s`)
+      line(` */`)
 
       enumName = name + 'Code'
     }
 
-    line(`export enum ${enumName} {`)
+    line();
+
+    line(`/** @enum {number} */`)
+    line(`export const ${enumName} = {`)
     options.forEach(({name, code, type, description, deprecated}) => {
       if (deprecated) line(`  ${comment} DEPRECATED`)
       else if (description) {
@@ -82,18 +100,20 @@ parseString(xml, (err, result) => {
         output.write('   */\n')
       }
 
-      line(`  ${toUpperCamelCase(name)} = ${code},\n`)
+      // line(`  '${code}': ${JSON.stringify(name)},\n`)
+      line(`  ${toUpperCamelCase(name)}: ${code},\n`)
     })
 
     line(`}\n`)
   })
 
-  result.Options.Scope.forEach((scope: any) => {
-    const name: string = scope.$.name
+  result.Options.Scope.forEach(/** @param {any} scope */(scope) => {
+    const name = /** @type {string} */(scope.$.name)
     if (name.endsWith('Option')) {
       const options = readOptions(scope.Option)
 
-      line(`export const ${toLowerFirst(name) + 'Data'}: OptionData = {`)
+      line('/** @type {import(\'./opts.js\').OptionData} */')
+      line(`export const ${toLowerFirst(name) + 'Data'} = {`)
       options.forEach(({name, code, description, paramDescription, type, deprecated}) => {
         line(`  ${name}: {`)
         line(`    code: ${code},`)
