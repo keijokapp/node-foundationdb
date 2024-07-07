@@ -14,17 +14,12 @@
   "main": "dist/lib/index.js",
   "types": "dist/lib/index.d.ts",
   "files": [
-    "dist",
+    "dist/lib",
     "prebuilds",
     "binding.gyp",
     "src"
   ],
   "scripts": {
-    "install": "node-gyp-build",
-    "test": "mocha -r ts-node/register test/*.ts",
-    "prepare": "rm -rf dist && tsc -p .",
-    "prepublishOnly": "ls -ld prebuilds/darwin-arm64/foundationdb.node prebuilds/darwin-x64/foundationdb.node prebuilds/linux-x64/foundationdb.node",
-    "prebuild": "prebuildify --napi --strip"
   },
   "dependencies": {
     "fdb-tuple": "^1.0.0",
