@@ -1,4 +1,3 @@
-import FDBError from './error'
 import {
   Watch,
   NativeTransaction,
@@ -12,11 +11,8 @@ import {
   asBuf
 } from './util'
 import keySelector, {KeySelector} from './keySelector'
-import {eachOption} from './opts'
 import {
-  TransactionOptions,
   TransactionOptionCode,
-  transactionOptionData,
   StreamingMode,
   MutationType
 } from './opts.g'
@@ -74,6 +70,8 @@ interface TxnCtx {
   // the versionstamp from the txn and bake it back into the tuple (or
   // whatever) after the transaction commits.
   toBake: null | BakeItem<any>[]
+
+  invalid?: true
 }
 
 /**
@@ -118,7 +116,7 @@ interface TxnCtx {
  * apply a value transformer this will change.
  */
 export default class Transaction<KeyIn = NativeValue, KeyOut = Buffer, ValIn = NativeValue, ValOut = Buffer> {
-  /** @internal */ _tn: NativeTransaction
+  /** @internal */ private _tn: NativeTransaction
 
   isSnapshot: boolean
   subspace: Subspace<KeyIn, KeyOut, ValIn, ValOut>
@@ -134,14 +132,13 @@ export default class Transaction<KeyIn = NativeValue, KeyOut = Buffer, ValIn = N
   constructor(tn: NativeTransaction, snapshot: boolean,
       subspace: Subspace<KeyIn, KeyOut, ValIn, ValOut>,
       // keyEncoding: Transformer<KeyIn, KeyOut>, valueEncoding: Transformer<ValIn, ValOut>,
-      opts?: TransactionOptions, ctx?: TxnCtx) {
+      ctx?: TxnCtx) {
     this._tn = tn
 
     this.isSnapshot = snapshot
     this.subspace = subspace
 
     // this._root = root || this
-    if (opts) eachOption(transactionOptionData, opts, (code, val) => tn.setOption(code, val))
 
     this._ctx = ctx ? ctx : {
       nextCode: 0,
@@ -149,42 +146,39 @@ export default class Transaction<KeyIn = NativeValue, KeyOut = Buffer, ValIn = N
     }
   }
 
-  // Internal method to actually run a transaction retry loop. Do not call
-  // this directly - instead use Database.doTn().
+  get context(): object {
+    return this._ctx;
+  }
 
   /** @internal */
-  async _exec<T>(body: (tn: Transaction<KeyIn, KeyOut, ValIn, ValOut>) => Promise<T>, opts?: TransactionOptions): Promise<T> {
-    // Logic described here:
-    // https://apple.github.io/foundationdb/api-c.html#c.fdb_transaction_on_error
-    do {
-      try {
-        const result = await body(this)
+  _assertValid() {
+    if (this._ctx.invalid) {
+      throw new Error('Transaction is invalid')
+    }
+  }
 
-        const stampPromise = (this._ctx.toBake && this._ctx.toBake.length)
-          ? this.getVersionstamp() : null
+  /** @internal */
+  _invalidate() {
+    this._ctx.invalid = true;
+  }
 
-        await this.rawCommit()
+  /** @internal */
+  async _exec<T>(body: (tn: Transaction<KeyIn, KeyOut, ValIn, ValOut>) => Promise<T>): Promise<T> {
+    const result = await body(this)
 
-        if (stampPromise) {
-          const stamp = await stampPromise.promise
+    const stampPromise = (this._ctx.toBake && this._ctx.toBake.length)
+      ? this.getVersionstamp() : null
 
-          this._ctx.toBake!.forEach(({item, transformer, code}) => (
-            transformer.bakeVersionstamp!(item, stamp, code))
-          )
-        }
-        return result // Ok, success.
-      } catch (err) {
-        // See if we can retry the transaction
-        if (err instanceof FDBError) {
-          await this.rawOnError(err.code) // If this throws, punt error to caller.
-          // If that passed, loop.
-        } else throw err
-      }
+    await this.rawCommit()
 
-      // Reset our local state that will have been filled in by calling the body.
-      this._ctx.nextCode = 0
-      if (this._ctx.toBake) this._ctx.toBake.length = 0
-    } while (true)
+    if (stampPromise) {
+      const stamp = await stampPromise.promise
+
+      this._ctx.toBake!.forEach(({item, transformer, code}) => (
+        transformer.bakeVersionstamp!(item, stamp, code))
+      )
+    }
+    return result // Ok, success.
   }
 
   /**
@@ -197,6 +191,8 @@ export default class Transaction<KeyIn = NativeValue, KeyOut = Buffer, ValIn = N
    * of the transaction object (eg in other scopes or from `txn.snapshot()`).
    */
   setOption(opt: TransactionOptionCode, value?: number | string | Buffer) {
+    this._assertValid()
+
     // TODO: Check type of passed option is valid.
     this._tn.setOption(opt, (value == null) ? null : value)
   }
@@ -205,14 +201,14 @@ export default class Transaction<KeyIn = NativeValue, KeyOut = Buffer, ValIn = N
    * Returns a shallow copy of the transaction object which does snapshot reads.
    */
   snapshot(): Transaction<KeyIn, KeyOut, ValIn, ValOut> {
-    return new Transaction(this._tn, true, this.subspace, undefined, this._ctx)
+    return new Transaction(this._tn, true, this.subspace, this._ctx)
   }
 
   /**
    * Create a shallow copy of the transaction in the specified subspace (or database, transaction, or directory).
   */
   at<CKI, CKO, CVI, CVO>(hasSubspace: GetSubspace<CKI, CKO, CVI, CVO>): Transaction<CKI, CKO, CVI, CVO> {
-    return new Transaction(this._tn, this.isSnapshot, hasSubspace.getSubspace(), undefined, this._ctx)
+    return new Transaction(this._tn, this.isSnapshot, hasSubspace.getSubspace(), this._ctx)
   }
 
   /** @deprecated - use transaction.at(db) instead. */
@@ -232,18 +228,28 @@ export default class Transaction<KeyIn = NativeValue, KeyOut = Buffer, ValIn = N
   /** @deprecated - Use promises API instead. */
   rawCommit(cb: Callback<void>): void
   rawCommit(cb?: Callback<void>) {
+    this._assertValid()
+
     return cb
       ? this._tn.commit(cb)
       : this._tn.commit()
   }
 
-  rawReset() { this._tn.reset() }
-  rawCancel() { this._tn.cancel() }
+  rawReset() {
+    this._assertValid()
+    this._tn.reset()
+  }
+  rawCancel() {
+    this._assertValid()
+    this._tn.cancel()
+  }
 
   rawOnError(code: number): Promise<void>
   /** @deprecated - Use promises API instead. */
   rawOnError(code: number, cb: Callback<void>): void
   rawOnError(code: number, cb?: Callback<void>) {
+    this._assertValid()
+
     return cb
       ? this._tn.onError(code, cb)
       : this._tn.onError(code)
@@ -259,7 +265,10 @@ export default class Transaction<KeyIn = NativeValue, KeyOut = Buffer, ValIn = N
   /** @deprecated - Use promises API instead. */
   get(key: KeyIn, cb: Callback<ValOut | undefined>): void
   get(key: KeyIn, cb?: Callback<ValOut | undefined>) {
+    this._assertValid()
+
     const keyBuf = this.subspace.packKey(key)
+
     return cb
       ? this._tn.get(keyBuf, this.isSnapshot, (err, val) => {
         cb(err, val == null ? undefined : this.subspace.unpackValue(val))
@@ -272,7 +281,10 @@ export default class Transaction<KeyIn = NativeValue, KeyOut = Buffer, ValIn = N
    * tn.get() !== undefined.
    */
   exists(key: KeyIn): Promise<boolean> {
+    this._assertValid()
+
     const keyBuf = this.subspace.packKey(key)
+
     return this._tn.get(keyBuf, this.isSnapshot).then(val => val != undefined)
   }
 
@@ -294,6 +306,8 @@ export default class Transaction<KeyIn = NativeValue, KeyOut = Buffer, ValIn = N
    *   and return keys in the system portion (starting with '\xff').
    */
   getKey(_sel: KeySelector<KeyIn> | KeyIn): Promise<KeyOut | undefined> {
+    this._assertValid()
+
     const sel = keySelector.from(_sel)
     return this._tn.getKey(this.subspace.packKey(sel.key), sel.orEqual, sel.offset, this.isSnapshot)
       .then(key => (
@@ -305,12 +319,17 @@ export default class Transaction<KeyIn = NativeValue, KeyOut = Buffer, ValIn = N
 
   /** Set the specified key/value pair in the database */
   set(key: KeyIn, val: ValIn) {
+    this._assertValid()
+
     this._tn.set(this.subspace.packKey(key), this.subspace.packValue(val))
   }
 
   /** Remove the value for the specified key */
   clear(key: KeyIn) {
+    this._assertValid()
+
     const pack = this.subspace.packKey(key)
+
     this._tn.clear(pack)
   }
 
@@ -333,6 +352,8 @@ export default class Transaction<KeyIn = NativeValue, KeyOut = Buffer, ValIn = N
       end: KeySelector<NativeValue> | null,  // If not specified, start is used as a prefix.
       limit: number, targetBytes: number, streamingMode: StreamingMode,
       iter: number, reverse: boolean): Promise<KVList<Buffer, Buffer>> {
+    this._assertValid()
+
     const _end = end != null ? end : keySelector.firstGreaterOrEqual(strInc(start.key))
     return this._tn.getRange(
       start.key, start.orEqual, start.offset,
@@ -352,12 +373,16 @@ export default class Transaction<KeyIn = NativeValue, KeyOut = Buffer, ValIn = N
   }
 
   getEstimatedRangeSizeBytes(start?: KeyIn, end?: KeyIn): Promise<number> {
+    this._assertValid()
+
     const range = this.subspace.packRange(start, end, true)
 
     return this._tn.getEstimatedRangeSizeBytes(range.begin, range.end)
   }
 
   getRangeSplitPoints(start: KeyIn | undefined, end: KeyIn | undefined, chunkSize: number): Promise<KeyOut[]> {
+    this._assertValid()
+
     const range = this.subspace.packRange(start, end, true)
 
     return this._tn.getRangeSplitPoints(range.begin, range.end, chunkSize).then(results => (
@@ -569,6 +594,8 @@ export default class Transaction<KeyIn = NativeValue, KeyOut = Buffer, ValIn = N
    * @param end End of the range. If unspecified, the inclusive end of the keyspace is assumed.
    */
   clearRange(start?: KeyIn, end?: KeyIn) {
+    this._assertValid()
+
     const range = this.subspace.packRange(start, end)
 
     this._tn.clearRange(range.begin, range.end)
@@ -581,12 +608,16 @@ export default class Transaction<KeyIn = NativeValue, KeyOut = Buffer, ValIn = N
    * @see Transaction.clearRange
    */
   clearRangeStartsWith(prefix: KeyIn) {
+    this._assertValid()
+
     const range = this.subspace.packRangeStartsWith(prefix)
 
     this._tn.clearRange(range.begin, range.end)
   }
 
   watch(key: KeyIn, opts?: WatchOptions): Watch {
+    this._assertValid()
+
     const throwAll = opts && opts.throwAllErrors
     const watch = this._tn.watch(this.subspace.packKey(key), !throwAll)
     // Suppress the global unhandledRejection handler when a watch errors
@@ -595,43 +626,65 @@ export default class Transaction<KeyIn = NativeValue, KeyOut = Buffer, ValIn = N
   }
 
   addReadConflictRange(start?: KeyIn, end?: KeyIn) {
+    this._assertValid()
+
     const range = this.subspace.packRange(start, end, true)
     this._tn.addReadConflictRange(range.begin, range.end)
   }
   addReadConflictRangeStartsWith(prefix: KeyIn) {
+    this._assertValid()
+
     const range = this.subspace.packRangeStartsWith(prefix)
     this._tn.addReadConflictRange(range.begin, range.end)
   }
   addReadConflictKey(key: KeyIn) {
+    this._assertValid()
+
     const keyBuf = this.subspace.packKey(key)
     this._tn.addReadConflictRange(keyBuf, strNext(keyBuf))
   }
 
   addWriteConflictRange(start?: KeyIn, end?: KeyIn) {
+    this._assertValid()
+
     const range = this.subspace.packRange(start, end, true)
     this._tn.addWriteConflictRange(range.begin, range.end)
   }
   addWriteConflictRangeStartsWith(prefix: KeyIn) {
+    this._assertValid()
+
     const range = this.subspace.packRangeStartsWith(prefix)
     this._tn.addWriteConflictRange(range.begin, range.end)
   }
   addWriteConflictKey(key: KeyIn) {
+    this._assertValid()
+
     const keyBuf = this.subspace.packKey(key)
     this._tn.addWriteConflictRange(keyBuf, strNext(keyBuf))
   }
 
   // version must be 8 bytes
-  setReadVersion(v: Version) { this._tn.setReadVersion(v) }
+  setReadVersion(v: Version) {
+    this._assertValid()
+
+    this._tn.setReadVersion(v)
+  }
 
   /** Get the database version used to perform reads in this transaction. */
   getReadVersion(): Promise<Version>
   /** @deprecated - Use promises API instead. */
   getReadVersion(cb: Callback<Version>): void
   getReadVersion(cb?: Callback<Version>) {
+    this._assertValid()
+
     return cb ? this._tn.getReadVersion(cb) : this._tn.getReadVersion()
   }
 
-  getCommittedVersion() { return this._tn.getCommittedVersion() }
+  getCommittedVersion() {
+    this._assertValid()
+
+    return this._tn.getCommittedVersion()
+  }
 
   // Note: This promise can't be directly returned via the return value of a
   // transaction.
@@ -639,6 +692,8 @@ export default class Transaction<KeyIn = NativeValue, KeyOut = Buffer, ValIn = N
   /** @deprecated - Use promises API instead. */
   getVersionstamp(cb: Callback<Buffer>): void
   getVersionstamp(cb?: Callback<Buffer>) {
+    this._assertValid()
+
     if (cb) return this._tn.getVersionstamp(cb)
     else {
       // This one is surprisingly tricky:
@@ -657,18 +712,23 @@ export default class Transaction<KeyIn = NativeValue, KeyOut = Buffer, ValIn = N
   }
 
   getAddressesForKey(key: KeyIn): string[] {
+    this._assertValid()
+
     return this._tn.getAddressesForKey(this.subspace.packKey(key))
   }
 
   // **** Atomic operations
 
   atomicOpNative(opType: MutationType, key: NativeValue, oper: NativeValue) {
+    this._assertValid()
     this._tn.atomicOp(opType, key, oper)
   }
   atomicOpKB(opType: MutationType, key: KeyIn, oper: Buffer) {
+    this._assertValid()
     this._tn.atomicOp(opType, this.subspace.packKey(key), oper)
   }
   atomicOp(opType: MutationType, key: KeyIn, oper: ValIn) {
+    this._assertValid()
     this._tn.atomicOp(opType, this.subspace.packKey(key), this.subspace.packValue(oper))
   }
 
@@ -792,6 +852,8 @@ export default class Transaction<KeyIn = NativeValue, KeyOut = Buffer, ValIn = N
    * using setVersionstampedValue with tuples, just call get().
    */
   async getVersionstampPrefixedValue(key: KeyIn): Promise<{stamp: Buffer, value?: ValOut} | null> {
+    this._assertValid()
+
     const val = await this._tn.get(this.subspace.packKey(key), this.isSnapshot)
 
     if (val == null) {
@@ -816,6 +878,8 @@ export default class Transaction<KeyIn = NativeValue, KeyOut = Buffer, ValIn = N
   }
 
   getApproximateSize() {
+    this._assertValid()
+
     return this._tn.getApproximateSize()
   }
 
