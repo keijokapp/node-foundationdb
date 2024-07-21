@@ -47,7 +47,7 @@ export const prefixTransformer = <In, Out>(prefix: string | Buffer, inner: Trans
     },
     unpack(buf: Buffer) {
       if (!startsWith(buf, _prefix)) throw Error('Cannot unpack key outside of prefix range.')
-      return inner.unpack(buf.slice(_prefix.length))
+      return inner.unpack(buf.subarray(_prefix.length))
     },
   }
 

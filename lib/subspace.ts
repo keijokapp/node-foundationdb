@@ -10,7 +10,7 @@ import {
 } from "./util"
 import { UnboundStamp } from './versionstamp.js'
 
-const EMPTY_BUF = Buffer.alloc(0)
+const EMPTY_BUF = Buffer.allocUnsafe(0)
 
 const concatPrefix = (p1: Buffer, p2: string | Buffer | null) => (
   p2 == null ? p1
