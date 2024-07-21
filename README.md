@@ -48,29 +48,28 @@ npm install --save @arbendium/foundationdb
 Use it!
 
 ```javascript
-const fdb = require('@arbendium/foundationdb')
+import fdb from '@arbendium/foundationdb'
+
 fdb.setAPIVersion(700) // Must be called before database is opened
 
-;(async () => {
-  const dbRoot = fdb.open() // or open('/path/to/fdb.cluster')
+const dbRoot = fdb.open() // or open('/path/to/fdb.cluster')
 
-  // Scope all of your application's data inside the 'myapp' directory in your database
-  const db = dbRoot.at(await fdb.directory.createOrOpen(dbRoot, 'myapp'))
-    .withKeyEncoding(fdb.encoders.tuple) // automatically encode & decode keys using tuples
-    .withValueEncoding(fdb.encoders.json) // and values using JSON
+// Scope all of your application's data inside the 'myapp' directory in your database
+const db = dbRoot.at(await fdb.directory.createOrOpen(dbRoot, 'myapp'))
+  .withKeyEncoding(fdb.encoders.tuple) // automatically encode & decode keys using tuples
+  .withValueEncoding(fdb.encoders.json) // and values using JSON
 
-  await db.doTransaction(async tn => {
-    console.log('Book 123 is', await tn.get(['books', 123])) // Book 123 is undefined
+await db.doTransaction(async tn => {
+  console.log('Book 123 is', await tn.get(['books', 123])) // Book 123 is undefined
 
-    tn.set(['books', 123], {
-      title: 'Reinventing Organizations',
-      author: 'Laloux'
-    })
+  tn.set(['books', 123], {
+    title: 'Reinventing Organizations',
+    author: 'Laloux'
   })
+})
 
-  console.log('now book 123 is', await db.get(['books', 123])) // shorthand for db.doTransaction(...)
-  // now book 123 is { title: 'Reinventing Organizations', author: 'Laloux' }
-})()
+console.log('now book 123 is', await db.get(['books', 123])) // shorthand for db.doTransaction(...)
+// now book 123 is { title: 'Reinventing Organizations', author: 'Laloux' }
 ```
 
 > Note: You must set the FDB API version before using this library. You can specify any version number ≤ the version of FDB you are using in your cluster. If in doubt, set it to 620.
@@ -85,7 +84,8 @@ FoundationDB servers and clients use a [cluster file](https://apple.github.io/fo
 The best way to connect to your foundationdb cluster is to just use:
 
 ```javascript
-const fdb = require('@arbendium/foundationdb')
+import fdb from '@arbendium/foundationdb'
+
 const db = fdb.open()
 ```
 
@@ -98,7 +98,8 @@ This will look for a cluster file in:
 Alternately, you can manually specify a cluster file location:
 
 ```javascript
-const fdb = require('@arbendium/foundationdb')
+import fdb from '@arbendium/foundationdb'
+
 const db = fdb.open('/path/to/fdb.cluster')
 ```
 
@@ -202,7 +203,7 @@ Note that `tn.set` is synchronous. All set operations are immediately visible to
 By default the key and value arguments must be either node Buffer objects or strings. You can use [key and value transformers](#key-and-value-transformation) for automatic argument encoding. If you want to embed numbers, UUIDs, or multiple fields in your keys we strongly recommend using [fdb tuple encoding](https://apple.github.io/foundationdb/data-modeling.html#tuples) for your keys:
 
 ```javascript
-const fdb = require('@arbendium/foundationdb')
+import fdb from '@arbendium/foundationdb'
 
 const db = fdb.open()
   .withKeyEncoding(fdb.encoders.tuple)
@@ -401,7 +402,8 @@ getKey returns the key as a node buffer object unless you specify a key encoding
 This works particularly well combined with tuple encoding:
 
 ```javascript
-const fdb = require('@arbendium/foundationdb')
+import fdb from '@arbendium/foundationdb'
+
 const db = fdb.open()
   .withKeyEncoding(fdb.encoders.tuple)
 
@@ -412,7 +414,7 @@ const date = key[2] // The earliest enrolment date in the database
 You can also do something like this to get & use the last key in a range. This is awkward with the API as it is right now, but its very fast & computationally efficient:
 
 ```javascript
-const fdb = require('@arbendium/foundationdb')
+import fdb from '@arbendium/foundationdb'
 const db = fdb.open()
 
 // The next key after all the student scores
@@ -942,7 +944,7 @@ The javascript foundationdb tuple encoder lives in [its own library](https://git
 The simplest way to use the tuple encoder for keys is to set the key encoder in a database or subspace:
 
 ```javascript
-const fdb = require('@arbendium/foundationdb')
+import fdb from '@arbendium/foundationdb'
 
 const db = fdb.open()
   .withKeyEncoding(fdb.encoders.tuple)
@@ -955,7 +957,8 @@ await db.set(['class', [6, 'a']], {teacher: 'fred', room: '101a'})
 Once you have a subspace with tuple encoding, you can use .at() to scope it:
 
 ```javascript
-const fdb = require('@arbendium/foundationdb')
+import fdb from '@arbendium/foundationdb'
+
 const db = fdb.open()
 
 const class = fdb.root.withKeyEncoding(fdb.tuple)
