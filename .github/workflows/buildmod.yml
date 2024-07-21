@@ -56,12 +56,12 @@ jobs:
     - run: npm ci
     - run: npm test
 
-    - run: npm run prebuild --arch arm64
+    - run: npm run prebuild -- --arch=arm64
 
     - run: wget -nv "https://github.com/apple/foundationdb/releases/download/7.2.5/FoundationDB-7.2.5_x86_64.pkg"
     - run: sudo installer -pkg FoundationDB-7.2.5_x86_64.pkg -target /
 
-    - run: npm run prebuild --arch x64
+    - run: npm run prebuild -- --arch=x64
 
     - name: Upload artifacts
       uses: actions/upload-artifact@v4
