@@ -232,7 +232,7 @@ export default class Transaction<KeyIn = NativeValue, KeyOut = Buffer, ValIn = N
     const keyBuf = this.subspace.packKey(key)
 
     return this._tn.get(keyBuf, this.isSnapshot)
-      .then(val => val != null ? this.subspace.unpackValue(val) : undefined)
+      .then(val => val !== undefined ? this.subspace.unpackValue(val) : undefined)
   }
 
   /** Checks if the key exists in the database. This is just a shorthand for
