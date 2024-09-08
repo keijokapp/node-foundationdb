@@ -1,5 +1,26 @@
 # HEAD
 
+# 0.1.0
+
+- Forked the library as `@arbendium/foundationdb`.
+- Updated TypeScript target to `ES2022`.
+- Improved support for TypeScript's `exactOptionalPropertyTypes` option.
+- Fixed memory leak when using callback API-s.
+- Improved types and semantics of subspacing methods (`at`, `withKeyEncoding`, `withValueEncoding`)
+- Changed transaction runnning semantics. A new root transaction object is created for each run and the old ones become inoperable and will throw an error when used.
+- Exposed `Transaction#context` as an opaque object. This can be used, for example, as a `WeakMap` key to uniquely identify the transaction run.
+- Changed range operation semantics. All range methods (except the "native" or "raw" ones) have a `StartsWith` variant. The `start` and `end` arguments of the original methods are optional and default to subspace start and end (inclusive) respectively.
+- Updated minimum supported Node version to 18.
+- Removed deprecated methods, including callback-based methods.
+- Updated README examples.
+- Made nullability consistent and idiomatic. All functions and methods accept and return `undefined` instead of `null` where possible. `null` no longer has a special treatment like `undefined` does. It's now freed as a first-class logical value for keys and values.
+- Added integer encoders: `int32LE`, `int32BE`, `uint32LE`, `uint32BE`, `bigint64LE`, `bigint64BE`, `biguint64LE`, `biguint64BE`, `biguintLE`.
+- Removed `modType` export.
+- Made options to `Database#doOneshot` work.
+- Exported `Transformer`.
+
+---
+
 # 2.0.1
 
 - Added native support for apple silicon (arm64). This has been way too long coming. Thanks to everyone who contributed on [the github issue](https://github.com/josephg/node-foundationdb/issues/50). The library should automatically detect your computer's architecture and "just work". You will need to install a version of foundationdb which matches your computer's architecture.

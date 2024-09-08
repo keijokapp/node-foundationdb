@@ -2,7 +2,7 @@
 
 Node bindings for [FoundationDB](https://www.foundationdb.org/)!
 
-This is a fork. The original [foundationdb](https://github.com/josephg/node-foundationdb) has become effectively unmaintained and has a fair share of bugs, limitations and quirks. This fork includes fixes to many of these issues. **This package is not drop-in compatible with the original [`foundationdb`](https://www.npmjs.com/package/foundationdb) package.** Attempting to use it as a drop-in may result in an unexpected behavior, including data loss.
+This is a fork. The original [foundationdb](https://github.com/josephg/node-foundationdb) has become effectively unmaintained and has a fair share of bugs, limitations and quirks. This fork includes fixes to many of these issues. **This package is not drop-in compatible with the original [`foundationdb`](https://www.npmjs.com/package/foundationdb) package.** Attempting to use it as a drop-in may result in an unexpected behavior, including data loss. Please review the [change log](CHANGELOG.md) when migrating.
 
 - [Getting started](#usage)
 - [Connecting to your database cluster](#connecting-to-your-cluster)
