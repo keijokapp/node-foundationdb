@@ -24,6 +24,15 @@ export default class Database<KeyIn = NativeValue, KeyOut = Buffer, ValIn = Nati
     this.subspace = subspace//new Subspace<KeyIn, KeyOut, ValIn, ValOut>(prefix, keyXf, valueXf)
   }
 
+  /**
+   * Switch to a new mode of handling ranges.
+   *
+   * @see Subspace.noDefaultPrefix
+   */
+  noDefaultPrefix() {
+    return new Database(this._db, this.subspace.noDefaultPrefix())
+  }
+
   setNativeOptions(opts: DatabaseOptions) {
     eachOption(databaseOptionData, opts, (code, val) => this._db.setOption(code, val))
   }
@@ -159,7 +168,7 @@ export default class Database<KeyIn = NativeValue, KeyOut = Buffer, ValIn = Nati
     return this.doOneshot(tn => tn.clear(key))
   }
 
-  clearRange(start: KeyIn, end?: KeyIn) {
+  clearRange(start?: KeyIn, end?: KeyIn) {
     return this.doOneshot(tn => tn.clearRange(start, end))
   }
 
@@ -195,21 +204,21 @@ export default class Database<KeyIn = NativeValue, KeyOut = Buffer, ValIn = Nati
   }
 
   getRangeAll(
-      start: KeyIn | KeySelector<KeyIn>,
-      end?: KeyIn | KeySelector<KeyIn>,
+      start?: KeyIn | KeySelector<undefined | KeyIn>,
+      end?: KeyIn | KeySelector<undefined | KeyIn>,
       opts?: RangeOptions) {
-    return this.doTransaction(async tn => tn.snapshot().getRangeAll(start, end, opts))
+    return this.doTransaction(tn => tn.snapshot().getRangeAll(start, end, opts))
   }
 
   getRangeAllStartsWith(prefix: KeyIn | KeySelector<KeyIn>, opts?: RangeOptions) {
-    return this.getRangeAll(prefix, undefined, opts)
+    return this.doTransaction(tn => tn.snapshot().getRangeAllStartsWith(prefix, opts))
   }
 
-  getEstimatedRangeSizeBytes(start: KeyIn, end: KeyIn): Promise<number> {
+  getEstimatedRangeSizeBytes(start?: KeyIn, end?: KeyIn): Promise<number> {
     return this.doTransaction(tn => tn.getEstimatedRangeSizeBytes(start, end))
   }
 
-  getRangeSplitPoints(start: KeyIn, end: KeyIn, chunkSize: number): Promise<KeyOut[]> {
+  getRangeSplitPoints(start: KeyIn | undefined, end: KeyIn | undefined, chunkSize: number): Promise<KeyOut[]> {
     return this.doTransaction(tn => tn.getRangeSplitPoints(start, end, chunkSize))
   }
 
