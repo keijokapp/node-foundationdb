@@ -14,7 +14,7 @@
   "main": "dist/lib/index.js",
   "types": "dist/lib/index.d.ts",
   "files": [
-    "dist",
+    "dist/lib",
     "prebuilds",
     "binding.gyp",
     "src"
