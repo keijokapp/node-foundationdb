@@ -1,5 +1,4 @@
 import 'mocha'
-import assert = require('assert')
 import * as fdb from '../lib'
 import {testApiVersion} from './util'
 import mod from '../lib/native'

@@ -4,7 +4,6 @@
 // This file should be removed for 1.0
 
 import * as fdb from './index'
-// import fdb = require('./index')
 import * as ks from './keySelector'
 import {StreamingMode} from './opts.g'
 

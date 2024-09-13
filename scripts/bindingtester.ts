@@ -35,10 +35,10 @@ import {packPrefixedVersionstamp} from '../lib/versionstamp'
 import { concat2, startsWith } from '../lib/util'
 import {DirectoryError} from '../lib/directory'
 
-import assert = require('assert')
-import nodeUtil = require('util')
+import * as assert from 'assert'
+import * as nodeUtil from 'util'
 import * as chalk from 'chalk'
-import fs = require('fs')
+import * as fs from 'fs'
 import { Transformer } from '../lib/transformer'
 
 let verbose = false

@@ -1,5 +1,5 @@
 import 'mocha'
-import assert = require('assert')
+import * as assert from 'assert'
 import {
   prefix as testPrefix,
   strXF,

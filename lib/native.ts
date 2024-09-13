@@ -1,5 +1,5 @@
 import {platform} from 'os'
-import path = require('path')
+import * as path from 'path'
 
 import FDBError from './error'
 import {MutationType, StreamingMode} from './opts.g'

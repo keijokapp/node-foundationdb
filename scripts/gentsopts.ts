@@ -6,10 +6,9 @@
 // It is only necessary to re-run this when FDB adds / deprecates options.
 //
 // Usage: node dist/lib/gentsopts.js <path to foundationdb checkout>
-import fs = require('fs')
-import xml2js = require('xml2js') // I could type this but its not important enough.
+import * as fs from 'fs'
+import { parseString } from 'xml2js'
 
-const {parseString} = xml2js
 const fdbSourceLocation = process.argv[2] || (process.env.HOME + '/3rdparty/foundationdb')
 const xml = fs.readFileSync(fdbSourceLocation + '/fdbclient/vexillographer/fdb.options', 'utf8')
 
