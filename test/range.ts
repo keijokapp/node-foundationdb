@@ -1,6 +1,6 @@
 import 'mocha'
-import fdb = require('../lib')
-import assert = require('assert')
+import * as fdb from '../lib'
+import * as assert from 'assert'
 import {
   numXF,
   withEachDb,

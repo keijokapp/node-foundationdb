@@ -1,9 +1,5 @@
 // Stuff that hasn't been ported over:
 
-// const Transactional = require('./retryDecorator')
-// const locality = require('./locality')
-// const directory = require('./directory')
-
 import nativeMod, * as fdb from './native'
 import Database from './database'
 import {eachOption} from './opts'
