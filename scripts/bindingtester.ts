@@ -37,7 +37,7 @@ import {DirectoryError} from '../lib/directory'
 
 import assert = require('assert')
 import nodeUtil = require('util')
-import * as chalk from 'chalk'
+import chalk = require('chalk')
 import fs = require('fs')
 import { Transformer } from '../lib/transformer'
 
