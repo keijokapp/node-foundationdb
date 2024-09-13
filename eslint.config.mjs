@@ -20,6 +20,7 @@ export default [
       'no-underscore-dangle': 'off',
       'no-unused-vars': 'off',
       'no-use-before-define': 'off',
+      'no-extra-parens': 'off',
       semi: ['error', 'never']
     }
   },

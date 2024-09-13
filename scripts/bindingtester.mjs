@@ -1,4 +1,6 @@
-#!/usr/bin/env -S node --enable-source-maps
+#!/usr/bin/env -S node
+
+// @ts-check
 
 // This file implements the foundationdb binding API tester fuzzer backend
 // described here:
@@ -14,45 +16,73 @@
 // 2. cp (build directory)/bindings/python/fdb/fdboptions.py bindings/python/fdb/
 // 3. Add this line to bindings/bindingtester/known_testers.py:
 //
-// 'node': Tester('node', '/home/seph/src/node-foundationdb/dist/scripts/bindingtester.js', 53, 500, 720, types=ALL_TYPES),
+// 'node': Tester('node', '/home/seph/src/node-foundationdb/scripts/bindingtester.mjs', 53, 500, 720, types=ALL_TYPES),
 //
 // 4. Use the run_tester_loop.sh script to run the bindings tester. You will need to comment out the other bindings
 //    and add 'node'.
 
-import assert from 'assert'
-import fs from 'fs'
-import nodeUtil from 'util'
+import assert from 'node:assert'
+import path from 'node:path'
+import url from 'node:url'
+import { register } from 'node:module'
+import nodeUtil from 'node:util'
 import chalk from 'chalk'
-import * as fdb from '../lib'
-import {
-  Database,
-  Directory,
-  DirectoryError,
-  DirectoryLayer,
-  MutationType,
-  StreamingMode,
-  Subspace,
-  Transaction,
-  TransactionOptionCode,
-  TupleItem,
-  keySelector,
-  tuple,
-  util
-} from '../lib'
-import { Transformer } from '../lib/transformer'
-import { concat2, emptyBuffer, startsWith } from '../lib/util'
-import { packPrefixedVersionstamp } from '../lib/versionstamp'
+import tsNode from 'ts-node'
 
-const verbose = false
+register('ts-node/esm', import.meta.url)
+tsNode.register({ cwd: path.resolve(url.fileURLToPath(import.meta.url), '..') })
 
-// The string keys are all buffers, encoded as hex.
-// This is shared between all threads.
-const transactions: {[k: string]: Transaction} = {}
+/**
+ * @import { Database, Transaction, Subspace, Directory, DirectoryLayer, TupleItem, StreamingMode } from '../lib/index.ts'
+ */
+/**
+ * @typedef {{instrId: number, data: any}} StackItem
+ */
 
-// 'RESULT_NOT_PRESENT' -> 'ResultNotPresent'
-const toUpperCamelCase = (str: string) => str.toLowerCase().replace(/(^\w|_\w)/g, x => x[x.length - 1].toUpperCase())
+// NodeJS and TypeScript have different semantics for ESM interop. This has to be a
+// workaround until all modules are converted to ESM or TypeScript gets their shit together.
+const [
+  {
+    Database,
+    Directory,
+    DirectoryError,
+    DirectoryLayer,
+    FDBError,
+    MutationType,
+    Subspace,
+    TransactionOptionCode,
+    keySelector,
+    tuple,
+    util,
+    ...fdb
+  },
+  { concat2, emptyBuffer, startsWith },
+  { packPrefixedVersionstamp }
+] = await Promise.all([
+  import('../lib/index.ts').then(/** @param {any} module @returns {import('../lib/index.ts')} */module => module.default),
+  import('../lib/util.ts').then(/** @param {any} module @returns {import('../lib/util.ts')} */module => module.default),
+  import('../lib/versionstamp.ts').then(/** @param {any} module @returns {import('../lib/versionstamp.ts')} */module => module.default)
+])
 
-const tupleStrict: Transformer<TupleItem | TupleItem[], TupleItem[]> = {
+const verbose = true
+
+/**
+ * The string keys are all buffers, encoded as hex.
+ * This is shared between all threads.
+ * @type {Record<string, Transaction>}
+ */
+const transactions = {}
+
+//
+/**
+ * 'RESULT_NOT_PRESENT' -> 'ResultNotPresent'
+ * @param {string} str
+ * @returns {string}
+ */
+const toUpperCamelCase = str => str.toLowerCase().replace(/(^\w|_\w)/g, x => x[x.length - 1].toUpperCase())
+
+/** @type {import('../lib/transformer.ts').Transformer<TupleItem | TupleItem[], TupleItem[]>} */
+const tupleStrict = {
   ...tuple,
   name: 'tuple strict',
   unpack(val) {
@@ -62,25 +92,32 @@ const tupleStrict: Transformer<TupleItem | TupleItem[], TupleItem[]> = {
 
 const colors = [chalk.blueBright, chalk.red, chalk.cyan, chalk.greenBright, chalk.grey]
 
-const makeMachine = (db: Database, initialName: Buffer) => {
-  type StackItem = {instrId: number, data: any}
-  const stack: StackItem[] = []
+/**
+ * @param {Database} db
+ * @param {Buffer} initialName
+ * @returns {{ run(instrBuf: Buffer, log?: import('node:fs').WriteStream): Promise<void> }}
+ */
+const makeMachine = (db, initialName) => {
+  /** @type {StackItem[]} */
+  const stack = []
   let tnName = initialName
   let instrId = 0
-  let lastVersion: Buffer = Buffer.alloc(8) // null / empty last version.
+  let lastVersion = Buffer.alloc(8) // null / empty last version.
 
-  const threadColor = colors.pop()!
+  const threadColor = /** @type {import('chalk').Chalk} */(colors.pop())
   colors.unshift(threadColor)
 
   // Directory stuff
-  const dirList: (Subspace<any, any, any, any> | Directory<any, any, any, any> | fdb.DirectoryLayer | undefined)[] = [fdb.directory]
+  /** @type {Array<Subspace<any, any, any, any> | Directory<any, any, any, any> | DirectoryLayer | undefined>} */
+  const dirList = [fdb.directory]
   let dirIdx = 0
   let dirErrIdx = 0
 
   const tnNameKey = () => tnName.toString('hex')
 
-  const catchFdbErr = (e: Error) => {
-    if (e instanceof fdb.FDBError) {
+  /** @param {Error} e */
+  const catchFdbErr = e => {
+    if (e instanceof FDBError) {
       // This encoding is silly. Also note that these errors are normal & part of the test.
       if (verbose) {
         console.log(chalk.red('output error'), instrId, e)
@@ -92,8 +129,8 @@ const makeMachine = (db: Database, initialName: Buffer) => {
     throw e
   }
 
-  const unwrapNull = <T>(val: T | null | undefined) => val === undefined ? Buffer.from('RESULT_NOT_PRESENT') : val
-  const wrapP = <T>(p: T | Promise<T>) => p instanceof Promise ? p.then(unwrapNull, catchFdbErr) : unwrapNull(p)
+  const unwrapNull = val => val === undefined ? Buffer.from('RESULT_NOT_PRESENT') : val
+  const wrapP = p => p instanceof Promise ? p.then(unwrapNull, catchFdbErr) : unwrapNull(p)
 
   const popValue = async () => {
     assert(stack.length, 'popValue when stack is empty')
@@ -102,24 +139,37 @@ const makeMachine = (db: Database, initialName: Buffer) => {
       console.log(chalk.green('pop value'), stack[stack.length - 1].instrId, 'value:', stack[stack.length - 1].data)
     }
 
-    return stack.pop()!.data
+    return /** @type {StackItem} */(stack.pop()).data
   }
 
-  const chk = async <T>(pred: (item: any) => boolean, typeLabel: string): Promise<T> => {
+  /**
+   * @template T
+   * @param {(item: unknown) => boolean} pred
+   * @param {string} typeLabel
+   * @returns {Promise<T>}
+   */
+  const chk = async (pred, typeLabel) => {
     const { instrId } = stack[stack.length - 1]
     const val = await popValue()
     assert(pred(val), `${threadColor('Unexpected type')} of ${nodeUtil.inspect(val, false, undefined, true)} inserted at ${instrId} - espected ${typeLabel}`)
 
-    return val as any as T
+    return /** @type {T} */val
   }
 
-  const popStr = () => chk<string>(val => typeof val === 'string', 'string')
-  const popBool = () => chk<boolean>(val => val === 0 || val === 1, 'bool').then(x => !!x)
-  const popInt = () => chk<number | bigint>(val => Number.isInteger(val) || typeof val === 'bigint', 'int')
-  const popSmallInt = () => chk<number>(val => Number.isInteger(val), 'int')
-  const popBuffer = () => chk<Buffer>(Buffer.isBuffer, 'buf')
-  const popStrBuf = () => chk<string | Buffer>(val => typeof val === 'string' || Buffer.isBuffer(val), 'buf|str')
-  const popNullableBuf = () => chk<Buffer | null>(val => val == null || Buffer.isBuffer(val), 'buf|null')
+  /** @returns {Promise<string>} */
+  const popStr = () => chk(val => typeof val === 'string', 'string')
+  /** @returns {Promise<boolean>} */
+  const popBool = () => chk(val => val === 0 || val === 1, 'bool').then(x => !!x)
+  /** @returns {Promise<number | bigint>} */
+  const popInt = () => chk(val => Number.isInteger(val) || typeof val === 'bigint', 'int')
+  /** @returns {Promise<number>} */
+  const popSmallInt = () => chk(val => Number.isInteger(val), 'int')
+  /** @returns {Promise<Buffer>} */
+  const popBuffer = () => chk(Buffer.isBuffer, 'buf')
+  /** @returns {Promise<string | Buffer>} */
+  const popStrBuf = () => chk(val => typeof val === 'string' || Buffer.isBuffer(val), 'buf|str')
+  /** @returns {Promise<Buffer | null>} */
+  const popNullableBuf = () => chk(val => val == null || Buffer.isBuffer(val), 'buf|null')
 
   const popSelector = async () => {
     const key = await popBuffer()
@@ -140,7 +190,8 @@ const makeMachine = (db: Database, initialName: Buffer) => {
     return result
   }
 
-  const pushValue = (data: any) => {
+  /** @param {any} data */
+  const pushValue = data => {
     if (verbose) {
       console.log(chalk.green('push value'), instrId, 'value:', data)
     }
@@ -148,13 +199,15 @@ const makeMachine = (db: Database, initialName: Buffer) => {
     stack.push({ instrId, data })
   }
 
-  const pushArrItems = (data: any[]) => {
+  /** @param {unknown[]} data */
+  const pushArrItems = data => {
     for (let i = 0; i < data.length; i++) {
       pushValue(data[i])
     }
   }
 
-  const pushTupleItem = (data: TupleItem) => {
+  /** @param {TupleItem} data */
+  const pushTupleItem = data => {
     pushValue(data)
 
     if (verbose) {
@@ -162,7 +215,8 @@ const makeMachine = (db: Database, initialName: Buffer) => {
     }
   }
 
-  const pushLiteral = (data: string) => {
+  /** @param {string} data */
+  const pushLiteral = data => {
     if (verbose) {
       console.log(chalk.green('(literal:'), data, chalk.green(')'))
     }
@@ -170,39 +224,51 @@ const makeMachine = (db: Database, initialName: Buffer) => {
     pushValue(Buffer.from(data, 'ascii'))
   }
 
-  const maybePush = (data: Promise<any> | any) => {
+  /** @param {Promise<unknown> | unknown} data */
+  const maybePush = data => {
     if (data) {
       pushValue(wrapP(data))
     }
   }
 
-  const bufBeginsWith = (buf: Buffer, prefix: Buffer) => prefix.length <= buf.length && buf.compare(prefix, 0, prefix.length, 0, prefix.length) === 0
+  /**
+   * @param {Buffer} buf
+   * @param {Buffer} prefix
+   * @returns {boolean}
+   */
+  const bufBeginsWith = (buf, prefix) => prefix.length <= buf.length && buf.compare(prefix, 0, prefix.length, 0, prefix.length) === 0
 
   // Directory helpers
-  const getCurrentDirectory = (): Directory => {
+  /** @returns {Directory} */
+  const getCurrentDirectory = () => {
     const val = dirList[dirIdx]
     assert(val instanceof Directory)
 
     return val
   }
 
-  const getCurrentSubspace = (): Subspace => {
+  /** @returns {Subspace} */
+  const getCurrentSubspace = () => {
     const val = dirList[dirIdx]
     assert(val instanceof Directory || val instanceof Subspace)
 
     return val.getSubspace()
   }
 
-  const getCurrentDirectoryOrLayer = (): Directory | DirectoryLayer => {
+  /** @returns {Directory | DirectoryLayer} */
+  const getCurrentDirectoryOrLayer = () => {
     const val = dirList[dirIdx]
     assert(val instanceof Directory || val instanceof DirectoryLayer)
 
     return val
   }
 
-  const operations: {[op: string]: (operand: Database | Transaction, ...args: TupleItem[]) => any} = {
+  /**
+   * @type {Record<string, (operand: Database | Transaction, ...args: TupleItem[]) => unknown>}
+   */
+  const operations = {
     // Stack operations
-    PUSH(_, data: any) {
+    PUSH(_, data) {
       pushValue(data)
     },
     POP() {
@@ -237,7 +303,7 @@ const makeMachine = (db: Database, initialName: Buffer) => {
       if (typeof a === 'string') {
         pushValue(a + b)
       } else {
-        pushValue(Buffer.concat([a as Buffer, b as Buffer]))
+        pushValue(Buffer.concat([a, /** @type {Buffer} */(b)]))
       }
     },
     async LOG_STACK() {
@@ -250,7 +316,7 @@ const makeMachine = (db: Database, initialName: Buffer) => {
           for (let k = 0; k < 100 && i < stack.length; k++) {
             const { instrId, data } = stack[i]
 
-            let packedData = tuple.pack([await wrapP<TupleItem>(data)])
+            let packedData = tuple.pack([await wrapP(data)])
 
             if (packedData.length > 40000) {
               packedData = packedData.slice(0, 40000)
@@ -271,13 +337,14 @@ const makeMachine = (db: Database, initialName: Buffer) => {
       // We're setting the trannsaction identifier so if you turn on tracing at
       // the bottom of the file, we'll be able to track individual transactions.
       // This is helpful for debugging write conflicts, and things like that.
-      const opts: fdb.TransactionOptions = {
+      /** @type {import('../lib/opts.g.ts').TransactionOptions} */
+      const opts = {
         debug_transaction_identifier: `${instrId}`,
         log_transaction: true
       }
 
-      transactions[tnNameKey()] = db.rawCreateTransaction(instrId > 430 ? undefined : opts);
-      (transactions[tnNameKey()] as any)._instrId = instrId
+      transactions[tnNameKey()] = db.rawCreateTransaction(instrId > 430 ? undefined : opts)
+      /** @type {any} */transactions[tnNameKey()]._instrId = instrId
     },
     async USE_TRANSACTION() {
       tnName = await popBuffer()
@@ -290,9 +357,9 @@ const makeMachine = (db: Database, initialName: Buffer) => {
         transactions[tnNameKey()] = db.rawCreateTransaction()
       }
     },
-    async ON_ERROR(tn) {
+    async ON_ERROR(oper) {
       const code = Number(await popInt())
-      pushValue(wrapP((<Transaction>tn).rawOnError(code)))
+      pushValue(wrapP(/** @type {Transaction} */(oper).rawOnError(code)))
     },
 
     async GET(oper) {
@@ -305,14 +372,14 @@ const makeMachine = (db: Database, initialName: Buffer) => {
 
       const result = await oper.getKey(keySel) ?? emptyBuffer
 
-      if (result!.equals(Buffer.from('RESULT_NOT_PRESENT'))) {
+      if (result.equals(Buffer.from('RESULT_NOT_PRESENT'))) {
         return result
-      } // Gross.
+      }
 
-      if (bufBeginsWith(result!, prefix)) {
+      if (bufBeginsWith(result, prefix)) {
         // result starts with prefix.
         pushValue(result)
-      } else if (result!.compare(prefix) < 0) {
+      } else if (result.compare(prefix) < 0) {
         // RESULT < PREFIX
         pushValue(prefix)
       } else {
@@ -325,7 +392,7 @@ const makeMachine = (db: Database, initialName: Buffer) => {
       const endKey = await popBuffer()
       const limit = Number(await popInt())
       const reverse = await popBool()
-      const streamingMode = await popInt() as StreamingMode
+      const streamingMode = /** @type {StreamingMode} */(await popInt())
 
       const results = await oper.getRangeAll(
         keySelector.from(beginKey),
@@ -339,7 +406,7 @@ const makeMachine = (db: Database, initialName: Buffer) => {
       const prefix = await popBuffer()
       const limit = Number(await popInt())
       const reverse = await popBool()
-      const streamingMode = await popInt() as StreamingMode
+      const streamingMode = /** @type {StreamingMode} */(await popInt())
       const results = await oper.getRangeAllStartsWith(prefix, { streamingMode, limit, reverse })
       pushValue(tuple.pack(Array.prototype.concat.apply([], results)))
     },
@@ -348,11 +415,11 @@ const makeMachine = (db: Database, initialName: Buffer) => {
       const endSel = await popSelector()
       const limit = Number(await popInt())
       const reverse = await popBool()
-      const streamingMode = await popInt() as StreamingMode
+      const streamingMode = /** @type {StreamingMode} */(await popInt())
       const prefix = await popBuffer()
 
       const results = (await oper.getRangeAll(beginSel, endSel, { streamingMode, limit, reverse }))
-        .filter(([k]) => bufBeginsWith(k as Buffer, prefix))
+        .filter(([k]) => bufBeginsWith(k, prefix))
 
       pushValue(tuple.pack(Array.prototype.concat.apply([], results)))
     },
@@ -374,14 +441,14 @@ const makeMachine = (db: Database, initialName: Buffer) => {
     },
     async GET_READ_VERSION(oper) {
       try {
-        lastVersion = await (<Transaction>oper).getReadVersion()
+        lastVersion = await /** @type {Transaction} */(oper).getReadVersion()
         pushLiteral('GOT_READ_VERSION')
-      } catch (e: any) {
+      } catch (e) {
         pushValue(catchFdbErr(e))
       }
     },
     async GET_VERSIONSTAMP(oper) {
-      pushValue(wrapP((<Transaction>oper).getVersionstamp().promise))
+      pushValue(wrapP(/** @type {Transaction} */(oper).getVersionstamp().promise))
     },
 
     // Transaction set operations
@@ -396,7 +463,7 @@ const makeMachine = (db: Database, initialName: Buffer) => {
       maybePush(oper.set(key, val))
     },
     SET_READ_VERSION(oper) {
-      (<Transaction>oper).setReadVersion(lastVersion)
+      /** @type {Transaction} */(oper).setReadVersion(lastVersion)
     },
     async CLEAR(oper) {
       maybePush(oper.clear(await popStrBuf()))
@@ -408,49 +475,49 @@ const makeMachine = (db: Database, initialName: Buffer) => {
       maybePush(oper.clearRangeStartsWith(await popStrBuf()))
     },
     async ATOMIC_OP(oper) {
-      const codeStr = toUpperCamelCase(await popStr()) as keyof typeof MutationType
-      const code: MutationType = MutationType[codeStr]
+      const codeStr = toUpperCamelCase(await popStr())
+      const code = MutationType[codeStr]
       assert(code, `Could not find atomic codestr ${codeStr}`)
       maybePush(oper.atomicOp(code, await popStrBuf(), await popStrBuf()))
     },
     async READ_CONFLICT_RANGE(oper) {
-      (<Transaction>oper).addReadConflictRange(await popStrBuf(), await popStrBuf())
+      /** @type {Transaction} */(oper).addReadConflictRange(await popStrBuf(), await popStrBuf())
       pushLiteral('SET_CONFLICT_RANGE')
     },
     async WRITE_CONFLICT_RANGE(oper) {
-      (<Transaction>oper).addWriteConflictRange(await popStrBuf(), await popStrBuf())
+      /** @type {Transaction} */(oper).addWriteConflictRange(await popStrBuf(), await popStrBuf())
       pushLiteral('SET_CONFLICT_RANGE')
     },
     async READ_CONFLICT_KEY(oper) {
-      (<Transaction>oper).addReadConflictKey(await popStrBuf())
+      /** @type {Transaction} */(oper).addReadConflictKey(await popStrBuf())
       pushLiteral('SET_CONFLICT_KEY')
     },
     async WRITE_CONFLICT_KEY(oper) {
-      (<Transaction>oper).addWriteConflictKey(await popStrBuf())
+      /** @type {Transaction} */(oper).addWriteConflictKey(await popStrBuf())
       pushLiteral('SET_CONFLICT_KEY')
     },
     DISABLE_WRITE_CONFLICT(oper) {
-      (<Transaction>oper).setOption(TransactionOptionCode.NextWriteNoWriteConflictRange)
+      /** @type {Transaction} */(oper).setOption(TransactionOptionCode.NextWriteNoWriteConflictRange)
     },
     COMMIT(oper) {
-      pushValue(wrapP((<Transaction>oper).rawCommit()))
+      pushValue(wrapP(/** @type {Transaction} */(oper).rawCommit()))
     },
     RESET(oper) {
-      (<Transaction>oper).rawReset()
+      /** @type {Transaction} */(oper).rawReset()
     },
     CANCEL(oper) {
-      (<Transaction>oper).rawCancel()
+      /** @type {Transaction} */(oper).rawCancel()
     },
     GET_COMMITTED_VERSION(oper) {
-      lastVersion = (<Transaction>oper).getCommittedVersion()
+      lastVersion = /** @type {Transaction} */(oper).getCommittedVersion()
       pushLiteral('GOT_COMMITTED_VERSION')
     },
     async GET_APPROXIMATE_SIZE(oper) {
-      await (<Transaction>oper).getApproximateSize()
+      await /** @type {Transaction} */(oper).getApproximateSize()
       pushLiteral('GOT_APPROXIMATE_SIZE')
     },
     async WAIT_FUTURE() {
-      await stack[stack.length - 1]!.data
+      await stack[stack.length - 1].data
     },
 
     // Tuple operations
@@ -465,7 +532,7 @@ const makeMachine = (db: Database, initialName: Buffer) => {
         pushLiteral('OK')
         const pack = packPrefixedVersionstamp(prefix, value, true)
         pushValue(pack)
-      } catch (e: any) {
+      } catch (e) {
         // TODO: Add userspace error codes to these.
         if (e.message === 'No incomplete versionstamp included in tuple pack with versionstamp') {
           pushLiteral('ERROR: NONE')
@@ -492,8 +559,8 @@ const makeMachine = (db: Database, initialName: Buffer) => {
       // Look I'll be honest. I could put a compare function into the tuple
       // type, but it doesn't do anything you can't trivially do yourself.
       const items = (await popNValues())
-        .map(buf => tuple.unpack(buf as Buffer, true))
-        .sort((a: TupleItem[], b: TupleItem[]) => tuple.pack(a).compare(tuple.pack(b)))
+        .map(buf => tuple.unpack(buf, true))
+        .sort((a, b) => tuple.pack(a).compare(tuple.pack(b)))
 
       for (const item of items) {
         pushValue(tuple.pack(item))
@@ -523,7 +590,7 @@ const makeMachine = (db: Database, initialName: Buffer) => {
     },
     async DECODE_FLOAT() {
       // These are both super gross. Not sure what to do about that.
-      const val = await popValue() as {type: 'float', value: number, rawEncoding: Buffer}
+      const val = await popValue()
       assert(typeof val === 'object' && val.type === 'float')
 
       const dv = new DataView(new ArrayBuffer(4))
@@ -531,7 +598,7 @@ const makeMachine = (db: Database, initialName: Buffer) => {
       pushValue(Buffer.from(dv.buffer))
     },
     async DECODE_DOUBLE() {
-      const val = await popValue() as {type: 'double', value: number, rawEncoding: Buffer}
+      const val = await popValue()
       assert(val.type === 'double', `val is ${nodeUtil.inspect(val)}`)
 
       const dv = new DataView(new ArrayBuffer(8))
@@ -547,10 +614,10 @@ const makeMachine = (db: Database, initialName: Buffer) => {
     async WAIT_EMPTY() {
       const prefix = await popBuffer()
       await db.doTransaction(async tn => {
-        const nextKey = (await tn.getKey(keySelector.firstGreaterOrEqual(prefix))) as Buffer
+        const nextKey = await tn.getKey(keySelector.firstGreaterOrEqual(prefix))
 
         if (nextKey && bufBeginsWith(nextKey, prefix)) {
-          throw new fdb.FDBError('wait_empty', 1020)
+          throw new FDBError('wait_empty', 1020)
         }
       }).catch(catchFdbErr)
       pushLiteral('WAITED_FOR_EMPTY')
@@ -561,7 +628,7 @@ const makeMachine = (db: Database, initialName: Buffer) => {
 
     // **** Directory stuff ****
     async DIRECTORY_CREATE_SUBSPACE() {
-      const path = (await popNValues()) as string[]
+      const path = await popNValues()
       const rawPrefix = await popStrBuf()
 
       if (verbose) {
@@ -578,8 +645,8 @@ const makeMachine = (db: Database, initialName: Buffer) => {
       const index2 = await popSmallInt()
       const allowManualPrefixes = await popBool()
 
-      const nodeSubspace = dirList[index1] as Subspace | undefined
-      const contentSubspace = dirList[index2] as Subspace | undefined
+      const nodeSubspace = /** @type {Subspace | undefined} */(dirList[index1])
+      const contentSubspace = /** @type {Subspace | undefined} */(dirList[index2])
 
       if (verbose) {
         console.log('dcl', index1, index2, allowManualPrefixes)
@@ -587,7 +654,7 @@ const makeMachine = (db: Database, initialName: Buffer) => {
 
       dirList.push(
         nodeSubspace != null && contentSubspace != null
-          ? new fdb.DirectoryLayer({
+          ? new DirectoryLayer({
             nodeSubspace,
             contentSubspace,
             allowManualPrefixes
@@ -597,16 +664,16 @@ const makeMachine = (db: Database, initialName: Buffer) => {
     },
 
     async DIRECTORY_CREATE_OR_OPEN(oper) {
-      const path = (await popNValues()) as string[]
+      const path = await popNValues()
       const layer = await popNullableBuf()
 
       const dir = await getCurrentDirectoryOrLayer().createOrOpen(oper, path, layer ?? undefined)
       dirList.push(dir)
     },
     async DIRECTORY_CREATE(oper) {
-      const path = (await popNValues()) as string[]
+      const path = await popNValues()
       const layer = await popNullableBuf()
-      const prefix = (await popValue()) as Buffer | null ?? undefined
+      const prefix = await popValue() ?? undefined
 
       if (verbose) {
         console.log('path', path, layer, prefix)
@@ -616,7 +683,7 @@ const makeMachine = (db: Database, initialName: Buffer) => {
       dirList.push(dir)
     },
     async DIRECTORY_OPEN(oper) {
-      const path = (await popNValues()) as string[]
+      const path = await popNValues()
       const layer = await popNullableBuf()
 
       const parent = getCurrentDirectoryOrLayer()
@@ -651,8 +718,8 @@ const makeMachine = (db: Database, initialName: Buffer) => {
     },
 
     async DIRECTORY_MOVE(oper) {
-      const oldPath = (await popNValues()) as string[]
-      const newPath = (await popNValues()) as string[]
+      const oldPath = await popNValues()
+      const newPath = await popNValues()
 
       if (verbose) {
         console.log('move', oldPath, newPath)
@@ -662,7 +729,7 @@ const makeMachine = (db: Database, initialName: Buffer) => {
     },
     async DIRECTORY_MOVE_TO(oper) {
       const dir = await getCurrentDirectoryOrLayer()
-      const newAbsPath = (await popNValues()) as string[]
+      const newAbsPath = await popNValues()
 
       // There's no moveTo method to call in DirectoryLayer - but this is what it would do if there were.
       if (dir instanceof DirectoryLayer) {
@@ -674,23 +741,22 @@ const makeMachine = (db: Database, initialName: Buffer) => {
     async DIRECTORY_REMOVE(oper) {
       const count = await popSmallInt() // either 0 or 1
       const path = count === 1
-        ? (await popNValues()) as string[]
+        ? await popNValues()
         : undefined
       await getCurrentDirectoryOrLayer().remove(oper, path)
     },
     async DIRECTORY_REMOVE_IF_EXISTS(oper) {
       const count = await popSmallInt() // either 0 or 1
       const path = count === 1
-        ? (await popNValues()) as string[]
+        ? await popNValues()
         : undefined
       await getCurrentDirectoryOrLayer().removeIfExists(oper, path)
     },
     async DIRECTORY_LIST(oper) {
       const count = await popSmallInt() // either 0 or 1
       const path = count === 1
-        ? (await popNValues()) as string[]
+        ? await popNValues()
         : undefined
-
       const children = tuple.pack(await getCurrentDirectoryOrLayer().listAll(oper, path))
       pushValue(children)
     },
@@ -698,11 +764,9 @@ const makeMachine = (db: Database, initialName: Buffer) => {
       const count = await popSmallInt() // either 0 or 1
       const path = count === 0
         ? undefined
-        : (await popNValues()) as string[]
-
+        : await popNValues()
       pushValue(await getCurrentDirectoryOrLayer().exists(oper, path) ? 1 : 0)
     },
-
     async DIRECTORY_PACK_KEY() {
       const keyTuple = await popNValues()
       pushValue(getCurrentSubspace().withKeyEncoding(tupleStrict).packKey(keyTuple))
@@ -782,16 +846,16 @@ const makeMachine = (db: Database, initialName: Buffer) => {
   }
 
   return {
-    async run(instrBuf: Buffer, log?: fs.WriteStream) {
+    async run(instrBuf, log) {
       const instruction = tuple.unpack(instrBuf, true)
-      let opcode = instruction[0] as string
+      let opcode = /** @type {string} */(instruction[0])
       const oper = instruction.slice(1)
 
       if (verbose) {
         if (oper.length) {
-          console.log(chalk.magenta(opcode as string), instrId, threadColor(initialName.toString('ascii')), oper, instrBuf.toString('hex'))
+          console.log(chalk.magenta(opcode), instrId, threadColor(initialName.toString('ascii')), oper, instrBuf.toString('hex'))
         } else {
-          console.log(chalk.magenta(opcode as string), instrId, threadColor(initialName.toString('ascii')))
+          console.log(chalk.magenta(opcode), instrId, threadColor(initialName.toString('ascii')))
         }
       }
 
@@ -799,11 +863,12 @@ const makeMachine = (db: Database, initialName: Buffer) => {
         log.write(`${opcode} ${instrId} ${stack.length}\n`)
       }
 
-      let operand: Transaction | Database = transactions[tnNameKey()]
+      /** @type {Transaction | Database} */
+      let operand = transactions[tnNameKey()]
 
       if (opcode.endsWith('_SNAPSHOT')) {
         opcode = opcode.slice(0, -'_SNAPSHOT'.length)
-        operand = (operand as Transaction).snapshot()
+        operand = operand.snapshot()
       } else if (opcode.endsWith('_DATABASE')) {
         opcode = opcode.slice(0, -'_DATABASE'.length)
         operand = db
@@ -815,7 +880,7 @@ const makeMachine = (db: Database, initialName: Buffer) => {
         }
 
         await operations[opcode](operand, ...oper)
-      } catch (e: any) {
+      } catch (e) {
         if (verbose) {
           console.log('Exception:', e.message)
         }
@@ -865,10 +930,17 @@ const makeMachine = (db: Database, initialName: Buffer) => {
   }
 }
 
-const threads = new Set<Promise<void>>()
+/** @type {Set<Promise<void>>} */
+const threads = new Set()
 let instructionsRun = 0
 
-const run = async (db: Database, prefix: Buffer, log?: fs.WriteStream) => {
+/**
+ * @param {Database} db
+ * @param {Buffer} prefix
+ * @param {import('fs').WriteStream} [log]
+ * @returns {Promise<void>}
+ */
+const run = async (db, prefix, log) => {
   const machine = makeMachine(db, prefix)
 
   const { begin, end } = tuple.range([prefix])
@@ -879,14 +951,20 @@ const run = async (db: Database, prefix: Buffer, log?: fs.WriteStream) => {
   }
 
   for (const [, value] of instructions) {
-    await machine.run(value as Buffer, log)
+    await machine.run(value, log)
     // TODO: consider inserting tiny sleeps to increase concurrency.
   }
 
   instructionsRun += instructions.length
 }
 
-async function runFromPrefix(db: Database, prefix: Buffer, log?: fs.WriteStream) {
+/**
+ * @param {Database} db
+ * @param {Buffer} prefix
+ * @param {import('fs').WriteStream} [log]
+ * @returns {Promise<void>}
+ */
+async function runFromPrefix(db, prefix, log) {
   const thread = run(db, prefix, log)
 
   threads.add(thread)
@@ -894,40 +972,33 @@ async function runFromPrefix(db: Database, prefix: Buffer, log?: fs.WriteStream)
   threads.delete(thread)
 }
 
-if (require.main === module) {
-  (async () => {
-    process.on('unhandledRejection', (err: any) => {
-      console.log(chalk.redBright('✖'), 'Unhandled error in binding tester:\n', err.message, 'code', err.code, err.stack)
+process.on('unhandledRejection', /** @param {any} err */err => {
+  console.log(chalk.redBright('✖'), 'Unhandled error in binding tester:\n', err.message, 'code', err.code, err.stack)
 
-      throw err
-    })
+  throw err
+})
 
-    const prefixStr = process.argv[2]
-    const requestedAPIVersion = +process.argv[3]
-    const clusterFile = process.argv[4]
+const prefixStr = process.argv[2]
+const requestedAPIVersion = +process.argv[3]
+const clusterFile = process.argv[4]
 
-    // const log = fs.createWriteStream('nodetester.log')
-    const log = undefined
+// const log = fs.createWriteStream('nodetester.log')
+const log = undefined
 
-    fdb.setAPIVersion(requestedAPIVersion)
-    fdb.configNetwork({
-    // trace_enable: 'trace',
-      trace_log_group: 'debug'
-    // trace_format: 'json',
-    // external_client_library: '~/3rdparty/foundationdb/lib/libfdb_c.dylib-debug',
-    })
-    const db = fdb.open(clusterFile)
+fdb.setAPIVersion(requestedAPIVersion)
+fdb.configNetwork({
+  // trace_enable: 'trace',
+  trace_log_group: 'debug'
+  // trace_format: 'json',
+  // external_client_library: '~/3rdparty/foundationdb/lib/libfdb_c.dylib-debug',
+})
+const db = fdb.open(clusterFile)
 
-    runFromPrefix(db, Buffer.from(prefixStr, 'ascii'), log)
+runFromPrefix(db, Buffer.from(prefixStr, 'ascii'), log)
 
-    // Wait until all 'threads' are finished.
-    while (threads.size) {
-      await Promise.all(Array.from(threads))
-    }
-
-    console.log(`${chalk.greenBright('✔')} Node binding tester complete. ${instructionsRun} commands executed`)
-
-  // And wait for other threads! Logging won't work for concurrent runs.
-  // if (log) log.end()
-  })()
+// Wait until all 'threads' are finished.
+while (threads.size) {
+  await Promise.all(Array.from(threads))
 }
+
+console.log(`${chalk.greenBright('✔')} Node binding tester complete. ${instructionsRun} commands executed`)
