@@ -80,7 +80,7 @@ withEachDb(db => describe('key value functionality', () => {
     // We can't test all the options, but we can test at least one.
     await db.doTransaction(async tn => {
       tn.set('x', 'hi there')
-      assert.equal(await tn.get('x'), null)
+      assert.strictEqual(await tn.get('x'), undefined)
     }, {read_your_writes_disable: true})
   })
 
@@ -189,7 +189,7 @@ withEachDb(db => describe('key value functionality', () => {
       await db_.setVersionstampPrefixedValue('hi there', 'yooo')
 
       const result = await db_.getVersionstampPrefixedValue('hi there')
-      assert(result != null)
+      assert.notStrictEqual(result, undefined)
 
       const {stamp, value} = result!
       assert.strictEqual(stamp.length, 10) // Opaque.

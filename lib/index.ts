@@ -60,10 +60,12 @@ export {
 import {id, strInc} from './util'
 export const util = {strInc}
 
-import * as tuple from 'fdb-tuple'
+import * as tupleEncoder from 'fdb-tuple'
 import {TupleItem} from 'fdb-tuple'
 
-export {TupleItem, tuple}
+export {TupleItem}
+
+export const tuple = tupleEncoder as any as Omit<typeof tupleEncoder, 'bakeVersionstamp'> & NonNullable<Transformer<TupleItem | TupleItem[], TupleItem[]>['bakeVersionstamp']>
 
 // This must come after tuple is defined, above.
 export const directory = new DirectoryLayer() // Convenient root directory

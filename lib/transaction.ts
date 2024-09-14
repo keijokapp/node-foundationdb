@@ -51,7 +51,7 @@ export type WatchOptions = {
 
 const doNothing = () => {}
 
-type BakeItem<T> = {item: T, transformer: Transformer<T, any>, code: Buffer | null}
+type BakeItem<T> = {item: T, transformer: Transformer<T, any>, code: Buffer | undefined}
 
 // This scope object is shared by the family of transaction objects made with .scope().
 interface TxnCtx {
@@ -60,7 +60,7 @@ interface TxnCtx {
   // If you call setVersionstampedKey / setVersionstampedValue, we pull out
   // the versionstamp from the txn and bake it back into the tuple (or
   // whatever) after the transaction commits.
-  toBake: null | BakeItem<any>[]
+  toBake?: BakeItem<any>[]
 
   invalid?: true
 }
@@ -128,9 +128,8 @@ export default class Transaction<KeyIn = NativeValue, KeyOut = Buffer, ValIn = N
     this.isSnapshot = snapshot
     this.subspace = subspace
 
-    this._ctx = ctx ? ctx : {
-      nextCode: 0,
-      toBake: null
+    this._ctx = ctx ?? {
+      nextCode: 0
     }
   }
 
@@ -154,8 +153,9 @@ export default class Transaction<KeyIn = NativeValue, KeyOut = Buffer, ValIn = N
   async _exec<T>(body: (tn: Transaction<KeyIn, KeyOut, ValIn, ValOut>) => Promise<T>): Promise<T> {
     const result = await body(this)
 
-    const stampPromise = (this._ctx.toBake && this._ctx.toBake.length)
-      ? this.getVersionstamp() : null
+    const stampPromise = this._ctx.toBake?.length
+      ? this.getVersionstamp()
+      : undefined
 
     await this.rawCommit()
 
@@ -183,7 +183,7 @@ export default class Transaction<KeyIn = NativeValue, KeyOut = Buffer, ValIn = N
     this._assertValid()
 
     // TODO: Check type of passed option is valid.
-    this._tn.setOption(opt, (value == null) ? null : value)
+    this._tn.setOption(opt, value ?? null)
   }
 
   /**
@@ -242,7 +242,7 @@ export default class Transaction<KeyIn = NativeValue, KeyOut = Buffer, ValIn = N
     const keyBuf = this.subspace.packKey(key)
 
     return this._tn.get(keyBuf, this.isSnapshot)
-      .then(val => val == null ? undefined : this.subspace.unpackValue(val))
+      .then(val => val != null ? this.subspace.unpackValue(val) : undefined)
   }
 
   /** Checks if the key exists in the database. This is just a shorthand for
@@ -315,7 +315,7 @@ export default class Transaction<KeyIn = NativeValue, KeyOut = Buffer, ValIn = N
   }
 
   getRangeNative(start: KeySelector<NativeValue>,
-      end: KeySelector<NativeValue> | null,  // If not specified, start is used as a prefix.
+      end: KeySelector<NativeValue> | undefined,  // If not specified, start is used as a prefix.
       limit: number, targetBytes: number, streamingMode: StreamingMode,
       iter: number, reverse: boolean): Promise<KVList<Buffer, Buffer>> {
     this._assertValid()
@@ -328,12 +328,12 @@ export default class Transaction<KeyIn = NativeValue, KeyOut = Buffer, ValIn = N
       iter, this.isSnapshot, reverse)
   }
 
-  getRangeRaw(start: KeySelector<KeyIn>, end: KeySelector<KeyIn> | null,
+  getRangeRaw(start: KeySelector<KeyIn>, end: KeySelector<KeyIn> | undefined,
       limit: number, targetBytes: number, streamingMode: StreamingMode,
       iter: number, reverse: boolean): Promise<KVList<KeyOut, ValOut>> {
     return this.getRangeNative(
       keySelector(this.subspace.packKey(start.key), start.orEqual, start.offset),
-      end != null ? keySelector(this.subspace.packKey(end.key), end.orEqual, end.offset) : null,
+      end != null ? keySelector(this.subspace.packKey(end.key), end.orEqual, end.offset) : undefined,
       limit, targetBytes, streamingMode, iter, reverse)
     .then(r => ({more: r.more, results: this._encodeRangeResult(r.results)}))
   }
@@ -735,7 +735,6 @@ export default class Transaction<KeyIn = NativeValue, KeyOut = Buffer, ValIn = N
       into.data.writeInt16BE(id, into.codePos)
       return into.data.subarray(into.codePos, into.codePos+2)
     }
-    return null
   }
 
   setVersionstampedKeyRaw(keyBytes: Buffer, value: ValIn) {
@@ -748,7 +747,7 @@ export default class Transaction<KeyIn = NativeValue, KeyOut = Buffer, ValIn = N
     this.atomicOpNative(MutationType.SetVersionstampedKey, key, this.subspace.packValue(value))
   }
 
-  private _addBakeItem<T>(item: T, transformer: Transformer<T, any>, code: Buffer | null) {
+  private _addBakeItem<T>(item: T, transformer: Transformer<T, any>, code?: Buffer) {
     if (transformer.bakeVersionstamp) {
       const scope = this._ctx
       if (scope.toBake == null) scope.toBake = []
@@ -807,29 +806,27 @@ export default class Transaction<KeyIn = NativeValue, KeyOut = Buffer, ValIn = N
    * This is designed to work with setVersionstampPrefixedValue. If you're
    * using setVersionstampedValue with tuples, just call get().
    */
-  async getVersionstampPrefixedValue(key: KeyIn): Promise<{stamp: Buffer, value?: ValOut} | null> {
+  async getVersionstampPrefixedValue(key: KeyIn): Promise<{stamp: Buffer, value?: ValOut} | undefined> {
     this._assertValid()
 
     const val = await this._tn.get(this.subspace.packKey(key), this.isSnapshot)
 
-    if (val == null) {
-      return null
-    }
+    if (val != null) {
+      return val.length <= 10
+        ? {
+          stamp: val
+        }
+        : {
+          stamp: val.subarray(0, 10),
 
-    return val.length <= 10
-      ? {
-        stamp: val
-      }
-      : {
-        stamp: val.subarray(0, 10),
-
-        // So this is a bit opinionated - if you call
-        // setVersionstampPrefixedValue with no value, the db will just have
-        // the 10 byte versionstamp. So when you get here, we have no bytes
-        // for the decoder and that can cause issues. We'll just return null
-        // in that case - but, yeah, controversial. You might want some other
-        // encoding or something. File an issue if this causes you grief.
-        value: this.subspace.unpackValue(val.subarray(10))
+          // So this is a bit opinionated - if you call
+          // setVersionstampPrefixedValue with no value, the db will just have
+          // the 10 byte versionstamp. So when you get here, we have no bytes
+          // for the decoder and that can cause issues. We'll just return undefined
+          // in that case - but, yeah, controversial. You might want some other
+          // encoding or something. File an issue if this causes you grief.
+          value: this.subspace.unpackValue(val.subarray(10))
+        }
       }
   }
 

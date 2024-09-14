@@ -16,7 +16,7 @@ export type Transformer<In, Out> = {
 
   // These are hooks for the tuple type to support unset versionstamps
   packUnboundVersionstamp?(val: In): UnboundStamp,
-  bakeVersionstamp?(val: In, versionstamp: Buffer, code: Buffer | null): void,
+  bakeVersionstamp?(val: In, versionstamp: Buffer, code: Buffer | undefined): void,
 
   /// Range which includes all "children" of this item, or whatever that means
   /// for the type. Added primarily to make it easier to get a range with some

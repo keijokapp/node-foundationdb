@@ -105,7 +105,7 @@ try {
 
   // This is way more involved than it needs to be, but error messages are important.
   if (platform() === 'darwin') {
-    const ldLibraryPath = process.env['DYLD_LIBRARY_PATH'] || ''
+    const ldLibraryPath = process.env['DYLD_LIBRARY_PATH'] ?? ''
     if (!ldLibraryPath.includes('/usr/local/lib')) {
       const configFile = process.env['SHELL'] === '/bin/zsh' ? '.zshrc' : '.bash_profile'
 
