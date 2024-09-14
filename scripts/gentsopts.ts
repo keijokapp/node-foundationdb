@@ -9,7 +9,7 @@
 import * as fs from 'fs'
 import { parseString } from 'xml2js'
 
-const fdbSourceLocation = process.argv[2] || (process.env.HOME + '/3rdparty/foundationdb')
+const fdbSourceLocation = process.argv[2] ?? (process.env.HOME + '/3rdparty/foundationdb')
 const xml = fs.readFileSync(fdbSourceLocation + '/fdbclient/vexillographer/fdb.options', 'utf8')
 
 const outFilename = 'lib/opts.g.ts'
