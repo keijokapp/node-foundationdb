@@ -68,7 +68,7 @@ const makeMachine = (db: Database, initialName: Buffer) => {
   colors.unshift(threadColor)
 
   // Directory stuff
-  const dirList: (Subspace<any, any, any, any> | Directory<any, any, any, any> | fdb.DirectoryLayer | null)[] = [fdb.directory]
+  const dirList: (Subspace<any, any, any, any> | Directory<any, any, any, any> | fdb.DirectoryLayer | undefined)[] = [fdb.directory]
   let dirIdx = 0
   let dirErrIdx = 0
 
@@ -144,17 +144,17 @@ const makeMachine = (db: Database, initialName: Buffer) => {
 
   // Directory helpers
   const getCurrentDirectory = (): Directory => {
-    const val = dirList[dirIdx] as Directory
+    const val = dirList[dirIdx]
     assert(val instanceof Directory)
     return val
   }
   const getCurrentSubspace = (): Subspace => {
-    const val = dirList[dirIdx] as Directory | Subspace
+    const val = dirList[dirIdx]
     assert(val instanceof Directory || val instanceof Subspace)
     return val.getSubspace()
   }
   const getCurrentDirectoryOrLayer = (): Directory | DirectoryLayer => {
-    const val = dirList[dirIdx] as Directory | DirectoryLayer
+    const val = dirList[dirIdx]
     assert(val instanceof Directory || val instanceof DirectoryLayer)
     return val
   }
@@ -239,7 +239,7 @@ const makeMachine = (db: Database, initialName: Buffer) => {
       const keySel = await popSelector()
       const prefix = await popBuffer()
 
-      const result = ((await oper.getKey(keySel)) || Buffer.from([])) as Buffer
+      const result = await oper.getKey(keySel) ?? emptyBuffer
 
       if (result!.equals(Buffer.from('RESULT_NOT_PRESENT'))) return result // Gross.
 
@@ -490,17 +490,18 @@ const makeMachine = (db: Database, initialName: Buffer) => {
       const index2 = await popSmallInt()
       const allowManualPrefixes = await popBool()
 
-      const nodeSubspace = dirList[index1] as Subspace | null
-      const contentSubspace = dirList[index2] as Subspace | null
+      const nodeSubspace = dirList[index1] as Subspace | undefined
+      const contentSubspace = dirList[index2] as Subspace | undefined
       if (verbose) console.log('dcl', index1, index2, allowManualPrefixes)
 
       dirList.push(
-        (nodeSubspace == null || contentSubspace == null) ? null
-        : new fdb.DirectoryLayer({
-          nodeSubspace,
-          contentSubspace,
-          allowManualPrefixes,
-        })
+        nodeSubspace != null && contentSubspace != null
+          ? new fdb.DirectoryLayer({
+            nodeSubspace,
+            contentSubspace,
+            allowManualPrefixes,
+          })
+          : undefined
       )
     },
 
@@ -508,17 +509,16 @@ const makeMachine = (db: Database, initialName: Buffer) => {
       const path = (await popNValues()) as string[]
       const layer = await popNullableBuf()
 
-      const dir = await getCurrentDirectoryOrLayer().createOrOpen(oper, path, layer || undefined)
+      const dir = await getCurrentDirectoryOrLayer().createOrOpen(oper, path, layer ?? undefined)
       dirList.push(dir)
     },
     async DIRECTORY_CREATE(oper) {
       const path = (await popNValues()) as string[]
       const layer = await popNullableBuf()
-      const prefix = (await popValue()) as Buffer | null || undefined
+      const prefix = (await popValue()) as Buffer | null ?? undefined
 
       if (verbose) console.log('path', path, layer, prefix)
-
-      const dir = await getCurrentDirectoryOrLayer().create(oper, path, layer || undefined, prefix)
+      const dir = await getCurrentDirectoryOrLayer().create(oper, path, layer ?? undefined, prefix)
       dirList.push(dir)
     },
     async DIRECTORY_OPEN(oper) {
@@ -526,7 +526,7 @@ const makeMachine = (db: Database, initialName: Buffer) => {
       const layer = await popNullableBuf()
 
       const parent = getCurrentDirectoryOrLayer()
-      const dir = await parent.open(oper, path, layer || undefined)
+      const dir = await parent.open(oper, path, layer ?? undefined)
       if (verbose) console.log('push new directory', dir.getPath(), 'at index', dirList.length, 'p', parent.getPath(), parent.constructor.name, path)
       dirList.push(dir)
     },
@@ -633,7 +633,7 @@ const makeMachine = (db: Database, initialName: Buffer) => {
 
       const scopedOper = (oper instanceof Database) ? oper.at(logSubspace) : oper.at(logSubspace)
       await scopedOper.set('path', dir.getPath())
-      await scopedOper.set('layer', layer)
+      await scopedOper.set('layer', layer ?? null)
       await scopedOper.set('exists', exists ? 1 : 0)
       await scopedOper.set('children', children)
 
@@ -696,7 +696,7 @@ const makeMachine = (db: Database, initialName: Buffer) => {
             'DIRECTORY_MOVE_TO',
             'DIRECTORY_OPEN_SUBSPACE'
           ]).includes(opcode)) {
-            dirList.push(null)
+            dirList.push(undefined)
           }
 
           pushLiteral('DIRECTORY_ERROR')

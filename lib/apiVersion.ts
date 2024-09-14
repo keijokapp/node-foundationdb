@@ -5,7 +5,7 @@ import nativeMod from './native'
 // - re-run the test suite and binding test suite
 export const MAX_VERSION = 720
 
-let apiVersion: number | null = null
+let apiVersion: number | undefined;
 export const get = () => apiVersion
 
 export function set(version: number, headerVersion?: number) {
