@@ -10,7 +10,7 @@ import {
 } from "./util"
 import { UnboundStamp } from './versionstamp.js'
 
-const concatPrefix = (p1: Buffer, p2: string | Buffer | null) => (
+const concatPrefix = (p1: Buffer, p2?: string | Buffer) => (
   p2 == null ? p1
     : p1.length === 0 ? asBuf(p2)
     : concat2(p1, asBuf(p2))
@@ -27,13 +27,13 @@ export default class Subspace<KeyIn = NativeValue, KeyOut = Buffer, ValIn = Nati
 
   _bakedKeyXf: Transformer<KeyIn, KeyOut> // This is cached from _prefix + keyXf.
 
-  constructor(rawPrefix: string | Buffer | null, keyXf?: Transformer<KeyIn, KeyOut>, valueXf?: Transformer<ValIn, ValOut>) {
+  constructor(rawPrefix?: string | Buffer, keyXf?: Transformer<KeyIn, KeyOut>, valueXf?: Transformer<ValIn, ValOut>) {
     this.prefix = rawPrefix?.length ? asBuf(rawPrefix) : emptyBuffer
 
     // Ugh typing this is a mess. Usually this will be fine since if you say new
     // Subspace() you'll get the default values for KI/KO/VI/VO.
-    this.keyXf = keyXf || (defaultTransformer as Transformer<any, any>)
-    this.valueXf = valueXf || (defaultTransformer as Transformer<any, any>)
+    this.keyXf = keyXf ?? (defaultTransformer as Transformer<any, any>)
+    this.valueXf = valueXf ?? (defaultTransformer as Transformer<any, any>)
 
     this._bakedKeyXf = this.prefix.length ? prefixTransformer(this.prefix, this.keyXf) : this.keyXf
   }
@@ -42,30 +42,31 @@ export default class Subspace<KeyIn = NativeValue, KeyOut = Buffer, ValIn = Nati
   // legit all the variants. Typescript can probably infer using less than this,
   // but I honestly don't trust it not to land with any or unknown or something
   // in some of the derived types
-  at(prefix?: KeyIn | null, keyXf?: undefined, valueXf?: undefined): Subspace<KeyIn, KeyOut, ValIn, ValOut>;
-  at<CKI, CKO>(prefix: KeyIn | null | undefined, keyXf: Transformer<CKI, CKO>, valueXf?: undefined): Subspace<CKI, CKO, ValIn, ValOut>;
-  at<CVI, CVO>(prefix: KeyIn | null | undefined, keyXf: undefined, valueXf: Transformer<CVI, CVO>): Subspace<KeyIn, KeyOut, CVI, CVO>;
-  at<CKI, CKO, CVI, CVO>(prefix: KeyIn | null | undefined, keyXf: Transformer<CKI, CKO>, valueXf: Transformer<CVI, CVO>): Subspace<CKI, CKO, CVI, CVO>;
-  at<CKI, CKO>(prefix: KeyIn | null | undefined, keyXf?: Transformer<CKI, CKO>, valueXf?: undefined):
+  at(prefix?: KeyIn, keyXf?: undefined, valueXf?: undefined): Subspace<KeyIn, KeyOut, ValIn, ValOut>;
+  at<CKI, CKO>(prefix: KeyIn | undefined, keyXf: Transformer<CKI, CKO>, valueXf?: undefined): Subspace<CKI, CKO, ValIn, ValOut>;
+  at<CVI, CVO>(prefix: KeyIn | undefined, keyXf: undefined, valueXf: Transformer<CVI, CVO>): Subspace<KeyIn, KeyOut, CVI, CVO>;
+  at<CKI, CKO, CVI, CVO>(prefix: KeyIn | undefined, keyXf: Transformer<CKI, CKO>, valueXf: Transformer<CVI, CVO>): Subspace<CKI, CKO, CVI, CVO>;
+  at<CKI, CKO>(prefix: KeyIn | undefined, keyXf?: Transformer<CKI, CKO>, valueXf?: undefined):
     | Subspace<KeyIn, KeyOut, ValIn, ValOut>
     | Subspace<CKI, CKO, ValIn, ValOut>;
-  at<CVI, CVO>(prefix: KeyIn | null | undefined, keyXf: undefined, valueXf?: Transformer<CVI, CVO>):
+  at<CVI, CVO>(prefix: KeyIn | undefined, keyXf: undefined, valueXf?: Transformer<CVI, CVO>):
     | Subspace<KeyIn, KeyOut, ValIn, ValOut>
     | Subspace<KeyIn, KeyOut, CVI, CVO>;
-  at<CKI, CKO, CVI, CVO>(prefix: KeyIn | null | undefined, keyXf: Transformer<CKI, CKO> | undefined, valueXf: Transformer<CVI, CVO>):
+  at<CKI, CKO, CVI, CVO>(prefix: KeyIn | undefined, keyXf: Transformer<CKI, CKO> | undefined, valueXf: Transformer<CVI, CVO>):
     | Subspace<KeyIn, KeyOut, CVI, CVO>
     | Subspace<CKI, CKO, CVI, CVO>;
-  at<CKI, CKO, CVI, CVO>(prefix: KeyIn | null | undefined, keyXf: Transformer<CKI, CKO>, valueXf?: Transformer<CVI, CVO>):
+  at<CKI, CKO, CVI, CVO>(prefix: KeyIn | undefined, keyXf: Transformer<CKI, CKO>, valueXf?: Transformer<CVI, CVO>):
     | Subspace<CKI, CKO, ValIn, ValOut>
     | Subspace<CKI, CKO, CVI, CVO>;
-  at<CKI, CKO, CVI, CVO>(prefix?: KeyIn | null, keyXf?: Transformer<CKI, CKO>, valueXf?: Transformer<CVI, CVO>):
+  at<CKI, CKO, CVI, CVO>(prefix?: KeyIn, keyXf?: Transformer<CKI, CKO>, valueXf?: Transformer<CVI, CVO>):
     | Subspace<KeyIn, KeyOut, ValIn, ValOut>
     | Subspace<CKI, CKO, ValIn, ValOut>
     | Subspace<KeyIn, KeyOut, CVI, CVO>
     | Subspace<CKI, CKO, CVI, CVO>;
-  at(prefix?: KeyIn | null, keyXf: Transformer<unknown, unknown> = this.keyXf, valueXf: Transformer<unknown, unknown> = this.valueXf) {
-    const _prefix = prefix == null ? null : this.keyXf.pack(prefix)
-    return new Subspace(concatPrefix(this.prefix, _prefix), keyXf, valueXf)
+  at(prefix?: KeyIn, keyXf: Transformer<unknown, unknown> = this.keyXf, valueXf: Transformer<unknown, unknown> = this.valueXf) {
+    const packedPrefix = prefix !== undefined ? this.keyXf.pack(prefix) : undefined
+
+    return new Subspace(concatPrefix(this.prefix, packedPrefix), keyXf, valueXf)
   }
 
   /** At a child prefix thats specified without reference to the key transformer */
@@ -153,7 +154,7 @@ export default class Subspace<KeyIn = NativeValue, KeyOut = Buffer, ValIn = Nati
   }
 }
 
-export const root: Subspace = new Subspace(null, defaultTransformer, defaultTransformer)
+export const root: Subspace = new Subspace(undefined, defaultTransformer, defaultTransformer)
 
 export interface GetSubspace<KI, KO, VI, VO> {
   getSubspace(): Subspace<KI, KO, VI, VO>

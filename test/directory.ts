@@ -103,7 +103,7 @@ withEachDb(db => describe('directory layer', () => {
       // The item shouldn't appear under 'some'.
       const dirParent = await dl.open(db, 'some')
       const valC = await db.at(dirParent).get('item')
-      assert.equal(valC, null)
+      assert.strictEqual(valC, undefined)
 
       // And we should see the subdirectory in list.
       assert.deepStrictEqual(await dirParent.listAll(db), ['dir'])

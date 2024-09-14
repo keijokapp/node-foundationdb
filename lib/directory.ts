@@ -256,19 +256,18 @@ class Node {
   // Frankly, I don't think this deserves a class all of its own, but this whole
   // file is complex enough, so I'm going to stick to a pretty straight
   // reimplementation of the python / ruby code here.
-  subspace: NodeSubspace | null
+  subspace: NodeSubspace | undefined
   path: Path
   target_path: Path
   // The layer should be defined as a string, but the binding tester insists on
   // testing this with binary buffers which are invalid inside a string, so
   // we'll use buffers internally and expose an API accepting either. Sigh.
-  layer: Buffer | null // Filled in lazily. Careful - this will most often be empty.
+  layer: Buffer | undefined // Filled in lazily. Careful - this will most often be empty.
 
-  constructor(subspace: NodeSubspace | null, path: Path, targetPath: Path) {
+  constructor(subspace: NodeSubspace | undefined, path: Path, targetPath: Path) {
     this.subspace = subspace
     this.path = path
     this.target_path = targetPath
-    this.layer = null
   }
 
   exists(): boolean {
@@ -280,7 +279,7 @@ class Node {
     return this
   }
 
-  async getLayer(txn?: TxnAny) {
+  async getLayer(txn?: TxnAny): Promise<Buffer> {
     if (this.layer == null) {
       // txn && console.log('key', txn!.at(this.subspace!).packKey(LAYER_KEY))
       // if (txn) console.log('xxx', (await txn.at(this.subspace!).get(LAYER_KEY)), this.path, this.target_path)
@@ -292,16 +291,17 @@ class Node {
       // What should the implicit layer be? The other bindings leave it as '',
       // even though its kinda a directory partition, so it probably should be
       // 'partition'.
-      if (txn) this.layer = (await txn.at(this.subspace!).get(LAYER_KEY)) || emptyBuffer
+      if (txn) this.layer = (await txn.at(this.subspace!).get(LAYER_KEY)) ?? emptyBuffer
       else throw new DirectoryError('Layer has not been read')
     }
 
-    return this.layer!
+    return this.layer
   }
 
   isInPartition(includeEmptySubpath: boolean = false) {
     return this.exists()
-      && this.layer && this.layer.equals(PARTITION_BUF)
+      && this.layer != null
+      && this.layer.equals(PARTITION_BUF)
       && (includeEmptySubpath || this.target_path.length > this.path.length)
   }
 
@@ -310,12 +310,17 @@ class Node {
   }
 
   async getContents<KeyIn, KeyOut, ValIn, ValOut>(directoryLayer: DirectoryLayer, keyXf: Transformer<KeyIn, KeyOut>, valueXf: Transformer<ValIn, ValOut>, txn?: TxnAny) {
-    return this.subspace == null ? null : directoryLayer._contentsOfNode(this.subspace, this.path, await this.getLayer(txn), keyXf, valueXf)
+    return this.subspace != null
+      ? directoryLayer._contentsOfNode(this.subspace, this.path, await this.getLayer(txn), keyXf, valueXf)
+      : undefined;
   }
 
   getContentsSync<KeyIn, KeyOut, ValIn, ValOut>(directoryLayer: DirectoryLayer, keyXf: Transformer<any, any> = defaultTransformer, valueXf: Transformer<any, any> = defaultTransformer) {
     if (this.layer == null) throw new DirectoryError('Node metadata has not been fetched.')
-    return this.subspace == null ? null : directoryLayer._contentsOfNode(this.subspace, this.path, this.layer!, keyXf, valueXf)
+
+    return this.subspace != null
+      ? directoryLayer._contentsOfNode(this.subspace, this.path, this.layer, keyXf, valueXf)
+      : undefined
   }
 }
 
@@ -329,7 +334,7 @@ export class Directory<KeyIn = NativeValue, KeyOut = Buffer, ValIn = NativeValue
   _path: Path
 
   _directoryLayer: DirectoryLayer
-  _layer: Buffer | null
+  _layer: Buffer | undefined
   content: Subspace<KeyIn, KeyOut, ValIn, ValOut>
 
   // If the directory is a partition, it also has a reference to the parent subspace.
@@ -355,7 +360,7 @@ export class Directory<KeyIn = NativeValue, KeyOut = Buffer, ValIn = NativeValue
       this._directoryLayer = directoryLayer
       this._parentDirectoryLayer = parentDirectoryLayer
     } else {
-      this._layer = layer ? asBuf(layer) : null
+      this._layer = layer != null ? asBuf(layer) : undefined
       this._directoryLayer = parentDirectoryLayer
       // this._parentDirectoryLayer is left as undefined for normal directories.
     }
@@ -430,7 +435,7 @@ export class Directory<KeyIn = NativeValue, KeyOut = Buffer, ValIn = NativeValue
 
   getLayer() {
     // will be 'partition' for partitions.
-    return this._layer ? this._layer.toString() : null
+    return this._layer?.toString()
   }
 
   getLayerRaw() {
@@ -446,7 +451,7 @@ export class Directory<KeyIn = NativeValue, KeyOut = Buffer, ValIn = NativeValue
   }
 
   private _partitionSubpath(path: PathIn, directoryLayer: DirectoryLayer = this._directoryLayer) {
-    return this._path?.slice(directoryLayer._path.length).concat(normalize_path(path))
+    return this._path.slice(directoryLayer._path.length).concat(normalize_path(path))
   }
 
   private getLayerForPath(path: PathIn): DirectoryLayer {
@@ -489,13 +494,15 @@ export class DirectoryLayer {
     // number as the prefix. Note that 0xfe (the default node prefix) is intentionally
     // an invalid tuple.
 
-    this._nodeSubspace = opts.nodeSubspace?.withKeyEncoding(tuple)
-      || new Subspace(opts.nodePrefix == null ? DEFAULT_NODE_PREFIX : opts.nodePrefix, tuple, defaultTransformer)
+    this._nodeSubspace = opts.nodeSubspace != null
+      ? opts.nodeSubspace.withKeyEncoding(tuple)
+      : new Subspace(opts.nodePrefix ?? DEFAULT_NODE_PREFIX, tuple, defaultTransformer)
 
-    this._contentSubspace = opts.contentSubspace?.withKeyEncoding(tuple)
-      || new Subspace(opts.contentPrefix == null ? emptyBuffer : opts.contentPrefix, tuple, defaultTransformer)
+    this._contentSubspace = opts.contentSubspace != null
+      ? opts.contentSubspace.withKeyEncoding(tuple)
+      : new Subspace(opts.contentPrefix ?? emptyBuffer, tuple, defaultTransformer)
 
-    this._allowManualPrefixes = opts.allowManualPrefixes || false
+    this._allowManualPrefixes = opts.allowManualPrefixes ?? false
 
     this._rootNode = this._nodeSubspace.at(this._nodeSubspace.prefix)
     this._allocator = new HighContentionAllocator(this._rootNode.at(HCA_PREFIX))
@@ -793,8 +800,6 @@ export class DirectoryLayer {
       const prev_prefix = k[0] as Buffer
       if (startsWith(key, prev_prefix)) return this._nodeWithPrefix(prev_prefix)
     }
-
-    return null
   }
 
   private _nodeWithPrefix(prefix: Buffer): NodeSubspace {
@@ -821,7 +826,7 @@ export class DirectoryLayer {
 
     for (let i = 0; i < path.length; i++) {
       const ref = await txn.at(node.subspace!).get([SUBDIRS_KEY, path[i]])
-      node = new Node(ref == null ? null : this._nodeSubspace.at(ref), path.slice(0, i+1), path)
+      node = new Node(ref != null ? this._nodeSubspace.at(ref) : undefined, path.slice(0, i+1), path)
 
       if (ref == null || (await node.getLayer(txn)).equals(PARTITION_BUF)) break
     }
