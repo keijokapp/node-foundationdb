@@ -13,7 +13,7 @@ withEachDb(db => describe('key value functionality', () => {
   )
 
   const prefill = async () => {
-    const _db = db.at(null, numXF, numXF)
+    const _db = db.at(undefined, numXF, numXF)
     await _db.doTransaction(async tn => {
       // Originally I just filled 100 values, but getEstimatedRangeSize needs more.
       for (let i = 0; i < 1000; i++) tn.set(i, i)
@@ -96,7 +96,7 @@ withEachDb(db => describe('key value functionality', () => {
     await _db.clearRangeStartsWith('a')
     // That should have deleted yes, but not no.
 
-    assert.equal(await _db.get(['a', 'b']), null)
+    assert.strictEqual(await _db.get(['a', 'b']), undefined)
     assert.deepStrictEqual(await _db.get(['a\x00']), Buffer.from('no'))
   })
 

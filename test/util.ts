@@ -5,7 +5,7 @@ import * as fdb from '../lib'
 export const prefix = '__test_data__/'
 
 // Using big endian numbers because they're lexographically sorted correctly.
-export const bufToNum = (b: Buffer | null, def: number = 0) => b ? b.readInt32BE(0) : def
+export const bufToNum = (b: Buffer | undefined, def: number = 0) => b != null ? b.readInt32BE(0) : def
 export const numToBuf = (n: number) => {
   const b = Buffer.allocUnsafe(4)
   b.writeInt32BE(n, 0)
