@@ -2,7 +2,6 @@ import nativeMod, * as fdb from './native'
 import Database from './database'
 import {eachOption} from './opts'
 import {NetworkOptions, networkOptionData, DatabaseOptions} from './opts.g'
-import {Transformer} from './transformer'
 import {root} from './subspace'
 import {DirectoryLayer} from './directory'
 
@@ -57,46 +56,15 @@ export {
   ErrorPredicate,
 } from './opts.g'
 
-import {id, strInc} from './util'
+import {strInc} from './util'
 export const util = {strInc}
 
-import * as tupleEncoder from 'fdb-tuple'
-import {TupleItem} from 'fdb-tuple'
+export {TupleItem} from 'fdb-tuple'
 
-export {TupleItem}
+export * as encoders from './encoders'
+export {tuple} from './encoders'
 
-export const tuple = tupleEncoder as any as Omit<typeof tupleEncoder, 'bakeVersionstamp'> & NonNullable<Transformer<TupleItem | TupleItem[], TupleItem[]>['bakeVersionstamp']>
-
-// This must come after tuple is defined, above.
 export const directory = new DirectoryLayer() // Convenient root directory
-
-export const encoders = {
-  int32BE: {
-    pack(num) {
-      const b = Buffer.allocUnsafe(4)
-      b.writeInt32BE(num)
-      return b
-    },
-    unpack(buf) { return buf.readInt32BE() }
-  } as Transformer<number, number>,
-
-  json: {
-    pack(obj) { return JSON.stringify(obj) },
-    unpack(buf) { return JSON.parse(buf.toString()) }
-  } as Transformer<any, any>,
-
-  string: {
-    pack(str) { return Buffer.from(str) },
-    unpack(buf) { return buf.toString() }
-  } as Transformer<string, string>,
-
-  buf: {
-    pack: id,
-    unpack: id
-  } as Transformer<Buffer, Buffer>,
-
-  tuple: tuple as Transformer<TupleItem[], TupleItem[]>,
-}
 
 // Can only be called before open()
 export function configNetwork(netOpts: NetworkOptions) {
