@@ -1,5 +1,7 @@
+import { TupleItem } from 'fdb-tuple';
+import Database from "./database";
+import { tuple } from './encoders';
 import Transaction from "./transaction";
-import { Database, tuple, TupleItem } from ".";
 import { Transformer, defaultTransformer } from "./transformer";
 import { TransactionOptionCode } from "./opts.g";
 import { concat2, startsWith, strInc, asBuf, emptyBuffer } from "./util";
