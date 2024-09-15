@@ -13,7 +13,7 @@ withEachDb(db => describe('directory layer', () => {
   describe('high contention allocator', () => {
     const addToSet = async (keyBuf: Buffer, set: Set<number>) => {
       // The keys are actually numbers encoded with the tuple encoder
-      const key = fdb.tuple.unpack(keyBuf)[0] as number
+      const key = fdb.encoders.tuple.unpack(keyBuf)[0] as number
 
       // console.log(key)
 
@@ -22,7 +22,7 @@ withEachDb(db => describe('directory layer', () => {
       set.add(key)
     }
 
-    const subspace = db.subspace.at('hca').withKeyEncoding(fdb.tuple)
+    const subspace = db.subspace.at('hca').withKeyEncoding(fdb.encoders.tuple)
     it('allocates unique values sequentially', async function() {
       const NUM = 100
       this.timeout(60000)

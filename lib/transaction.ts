@@ -95,7 +95,7 @@ interface TxnCtx {
  * @param KeyIn The type for keys passed by the user into functions (eg `get(k:
  * KeyIn)`). Defaults to string | Buffer. Change this by scoping the transaction
  * with a subspace with a key transformer. Eg
- * `txn.at(fdb.root.withKeyEncoding(fdb.tuple)).get([1, 2, 3])`.
+ * `txn.at(fdb.root.withKeyEncoding(fdb.encoders.tuple)).get([1, 2, 3])`.
  * @param KeyOut The type of keys returned by methods which return keys - like
  * `getKey(..) => Promise<KeyOut?>`. Unless you have a KV transformer, this will
  * be Buffer.

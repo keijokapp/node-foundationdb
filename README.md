@@ -317,14 +317,14 @@ await db.get('hi') // returns [1,2,3]
 ```javascript
 const db = fdb.open('fdb.cluster')
 
-const subspace = new fdb.Subspace().withKeyEncoding(fdb.tuple).at('stuff')
+const subspace = new fdb.Subspace().withKeyEncoding(fdb.encoders.tuple).at('stuff')
 
 await db.at(subspace).set(['hi', 'there'], [1,2,3])
 
 await db.get(['stuff', 'hi', 'there']) // returns [1,2,3]
 ```
 
-Note that the key encoding was applied *first*, which allowed the tuple encoder to encode 'stuff'. If we swapped the order (`subspace.at('stuff').withKeyEncoding(fdb.tuple)`), the prefix 'stuff' would be converted to raw bytes rather than being encoded with the tuple encoder.
+Note that the key encoding was applied *first*, which allowed the tuple encoder to encode 'stuff'. If we swapped the order (`subspace.at('stuff').withKeyEncoding(fdb.encoders.tuple)`), the prefix 'stuff' would be converted to raw bytes rather than being encoded with the tuple encoder.
 
 
 #### Custom encodings
@@ -419,11 +419,11 @@ import * as fdb from '@arbendium/foundationdb'
 const db = fdb.open()
 
 // The next key after all the student scores
-const afterScore = fdb.util.strInc(tuple.pack(['students', 'by_score']))
+const afterScore = fdb.util.strInc(fdb.encoders.tuple.pack(['students', 'by_score']))
 
 const key = await db.getKey(fdb.keySelector.lastLessThan(afterScore))
 
-const highestScore = fdb.tuple.unpack(key)[2]
+const highestScore = fdb.encoders.tuple.unpack(key)[2]
 ```
 
 
@@ -767,8 +767,8 @@ If you insert multiple versionstamped keys / values in the same transaction, eac
 import * as fdb from '@arbendium/foundationdb'
 const db = fdb.open().withValueEncoding(fdb.encoders.tuple)
 
-const key1 = [1,2,3, tuple.unboundVersionstamp()]
-const key2 = [1,2,3, tuple.unboundVersionstamp()]
+const key1 = [1,2,3, fdb.tuple.unboundVersionstamp()]
+const key2 = [1,2,3, fdb.tuple.unboundVersionstamp()]
 
 await db.doTxn(async tn => {
   tn.setVersionstampedKey(key1, '1')
@@ -938,7 +938,7 @@ These problems are addressed by using [FDB tuple encoding](https://apple.github.
 
 You can use the tuple encoder for database values too if you like, the tuple encoding doesn't support objects so it can be more awkward to use compared to JSON / [msgpack](https://msgpack.org/index.html) / [protobuf](https://developers.google.com/protocol-buffers) / etc. And the unique benefits of the tuple encoder don't matter for value encoding.
 
-The javascript foundationdb tuple encoder lives in [its own library](https://github.com/josephg/fdb-tuple), but it is depended on and re-exposed here. You can access the tuple encoder via `fdb.tuple.pack()`, `fdb.tuple.unpack()`, etc.
+The javascript foundationdb tuple encoder lives in [its own library](https://github.com/josephg/fdb-tuple), but it is depended on and re-exposed here. You can access the tuple encoder via `fdb.tuple` or `fdb.encoders.tuple`.
 
 ### Tuple API
 
@@ -962,7 +962,7 @@ import * as fdb from '@arbendium/foundationdb'
 
 const db = fdb.open()
 
-const class = fdb.root.withKeyEncoding(fdb.tuple)
+const class = fdb.root.withKeyEncoding(fdb.encoders.tuple)
   .at('class')
 
 // equivalent to .set(['class', [6, 'a']]).
