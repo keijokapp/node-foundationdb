@@ -1,10 +1,7 @@
 import 'mocha'
 import * as fdb from '../lib'
 import * as assert from 'assert'
-import {
-  numXF,
-  withEachDb,
-} from './util'
+import { withEachDb } from './util'
 
 
 withEachDb(db => describe('key value functionality', () => {
@@ -13,7 +10,7 @@ withEachDb(db => describe('key value functionality', () => {
   )
 
   const prefill = async () => {
-    const _db = db.at(undefined, numXF, numXF)
+    const _db = db.at(undefined, fdb.encoders.int32BE, fdb.encoders.int32BE)
     await _db.doTransaction(async tn => {
       // Originally I just filled 100 values, but getEstimatedRangeSize needs more.
       for (let i = 0; i < 1000; i++) tn.set(i, i)
@@ -77,7 +74,7 @@ withEachDb(db => describe('key value functionality', () => {
   })
 
   it('fetches tuple ranges using a prefix correctly', async () => {
-    const _db = db.withKeyEncoding(fdb.tuple)
+    const _db = db.withKeyEncoding(fdb.encoders.tuple)
 
     await _db.set(['a\x00'], 'no')
     await _db.set(['a', 'b'], 'yes')
@@ -88,7 +85,7 @@ withEachDb(db => describe('key value functionality', () => {
   })
 
   it('clears tuple ranges using a prefix correctly', async () => {
-    const _db = db.withKeyEncoding(fdb.tuple)
+    const _db = db.withKeyEncoding(fdb.encoders.tuple)
 
     await _db.set(['a\x00'], 'no')
     await _db.set(['a', 'b'], 'yes')

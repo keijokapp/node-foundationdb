@@ -1,12 +1,6 @@
 import 'mocha'
 import * as assert from 'assert'
-import {
-  prefix as testPrefix,
-  strXF,
-  numToBuf,
-  bufToNum,
-  withEachDb,
-} from './util'
+import { prefix as testPrefix, withEachDb } from './util'
 import {tuple, TupleItem, encoders, Watch, keySelector} from '../lib'
 import { Transformer } from '../lib/transformer'
 
@@ -94,18 +88,18 @@ withEachDb(db => describe('key value functionality', () => {
     const concurrentWrites = 30
     const key = 'num'
 
-    await db.set(key, numToBuf(0))
+    await db.set(key, encoders.int32BE.pack(0))
 
     let txnAttempts = 0
     await Promise.all(new Array(concurrentWrites).fill(0).map((_, i) => (
       db.doTransaction(async tn => {
-        const val = bufToNum((await tn.get(key)) as Buffer)
-        tn.set(key, numToBuf(val + 1))
+        const val = encoders.int32BE.unpack((await tn.get(key)) as Buffer)
+        tn.set(key, encoders.int32BE.pack(val + 1))
         txnAttempts++
       })
     )))
 
-    const result = bufToNum((await db.get(key)) as Buffer)
+    const result = encoders.int32BE.unpack((await db.get(key)) as Buffer)
     assert.strictEqual(result, concurrentWrites)
 
     // This doesn't necessarily mean there's an error, but if there weren't
@@ -117,7 +111,7 @@ withEachDb(db => describe('key value functionality', () => {
   describe('native encoding', () => {
     // This is a test for a regression.
     const setGetAssertEqual = async (val: any, valueEncoding: Transformer<any, any>) => {
-      await db.withKeyEncoding(encoders.string).withValueEncoding(valueEncoding).doTransaction(async tn => {
+      await db.withValueEncoding(valueEncoding).doTransaction(async tn => {
         tn.set('xxx', val)
         const result = await tn.get('xxx')
         assert.deepStrictEqual(result, val)
@@ -185,7 +179,7 @@ withEachDb(db => describe('key value functionality', () => {
     })
 
     it('handles setVersionstampedValue', async () => {
-      const db_ = db.withValueEncoding(strXF)
+      const db_ = db.withValueEncoding(encoders.string)
       await db_.setVersionstampPrefixedValue('hi there', 'yooo')
 
       const result = await db_.getVersionstampPrefixedValue('hi there')
@@ -197,14 +191,14 @@ withEachDb(db => describe('key value functionality', () => {
     })
 
     it('roundtrips a tuple key', async () => {
-      const db_ = db.withKeyEncoding(encoders.tuple)
+      const db_ = db.withKeyEncoding(tuple)
       await db_.set([1,2,3], 'hi there')
       const result = await db_.get([1,2,3])
       assert.strictEqual(result!.toString(), 'hi there')
     })
 
     it('commits a tuple with unbound key versionstamps and bakes the vs and code', async () => {
-      const db_ = db.withKeyEncoding(encoders.tuple).withValueEncoding(encoders.string)
+      const db_ = db.withKeyEncoding(tuple).withValueEncoding(encoders.string)
       const key1: TupleItem[] = [1,2,3, tuple.unboundVersionstamp()] // should end up with code 0
       const key2: TupleItem[] = [1,2,3, tuple.unboundVersionstamp()] // code 1
       const key3: TupleItem[] = [1,2,3, tuple.unboundVersionstamp(321)] // code 321
@@ -235,7 +229,7 @@ withEachDb(db => describe('key value functionality', () => {
     })
 
     it('does not bake the vs in setVersionstampedKey(bakeAfterCommit=false)', async () => {
-      const db_ = db.withKeyEncoding(encoders.tuple)
+      const db_ = db.withKeyEncoding(tuple)
       const key: TupleItem[] = [1,2,3, {type: 'unbound versionstamp'}]
       await db_.setVersionstampedKey(key, 'hi', false)
 
@@ -243,7 +237,7 @@ withEachDb(db => describe('key value functionality', () => {
     })
 
     it('bakes versionstamps in a subspace', async () => {
-      const subspace = db.withValueEncoding(encoders.tuple);
+      const subspace = db.withValueEncoding(tuple);
 
       const value = await db.doTransaction(async tn => {
         const value = [tuple.unboundVersionstamp()]
@@ -255,7 +249,7 @@ withEachDb(db => describe('key value functionality', () => {
     })
 
     it('encodes versionstamps in child tuples', async () => {
-      const db_ = db.withKeyEncoding(encoders.tuple).withValueEncoding(encoders.string)
+      const db_ = db.withKeyEncoding(tuple).withValueEncoding(encoders.string)
       const key: any[] = [1,[2, {type: 'unbound versionstamp'}]]
 
       const actualStamp = await (await db_.doTn(async tn => {
@@ -273,7 +267,7 @@ withEachDb(db => describe('key value functionality', () => {
     it('resets the code in retried transactions')
 
     it('commits a tuple with unbound value versionstamps and bakes the vs and code', async () => {
-      const db_ = db.withKeyEncoding(encoders.string).withValueEncoding(encoders.tuple)
+      const db_ = db.withKeyEncoding(encoders.string).withValueEncoding(tuple)
       const val1: TupleItem[] = [1,2,3, {type: 'unbound versionstamp'}, 5] // code 1
       const val2: TupleItem[] = [1,2,3, {type: 'unbound versionstamp'}] // code 2
       const val3: TupleItem[] = [1,2,3, {type: 'unbound versionstamp', code: 321}] // code 321
