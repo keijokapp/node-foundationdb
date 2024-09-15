@@ -78,7 +78,7 @@ const makeMachine = (db: Database, initialName: Buffer) => {
     if (e instanceof fdb.FDBError) {
       // This encoding is silly. Also note that these errors are normal & part of the test.
       if (verbose) console.log(chalk.red('output error'), instrId, e)
-      return fdb.tuple.pack([Buffer.from('ERROR'), Buffer.from(e.code.toString())])
+      return tuple.pack([Buffer.from('ERROR'), Buffer.from(e.code.toString())])
     } else throw e
   }
 
@@ -194,13 +194,13 @@ const makeMachine = (db: Database, initialName: Buffer) => {
         await db.doTransaction(async tn => {
           for (let k = 0; k < 100 && i < stack.length; k++) {
             const {instrId, data} = stack[i]
-            let packedData = fdb.tuple.pack([
+            let packedData = tuple.pack([
               await wrapP<TupleItem>(data)
             ])
             if (packedData.length > 40000) packedData = packedData.slice(0, 40000)
 
             // TODO: Would be way better here to use a tuple transaction.
-            tn.set(Buffer.concat([prefix, fdb.tuple.pack([i, instrId])]), packedData)
+            tn.set(Buffer.concat([prefix, tuple.pack([i, instrId])]), packedData)
             i++
           }
         })
@@ -654,7 +654,7 @@ const makeMachine = (db: Database, initialName: Buffer) => {
 
   return {
     async run(instrBuf: Buffer, log?: fs.WriteStream) {
-      const instruction = fdb.tuple.unpack(instrBuf, true)
+      const instruction = tuple.unpack(instrBuf, true)
       let [opcode, ...oper] = instruction as [string, TupleItem[]]
 
       if (verbose) {
@@ -724,7 +724,7 @@ let instructionsRun = 0
 const run = async (db: Database, prefix: Buffer, log?: fs.WriteStream) => {
   const machine = makeMachine(db, prefix)
 
-  const {begin, end} = fdb.tuple.range([prefix])
+  const {begin, end} = tuple.range([prefix])
   const instructions = await db.getRangeAll(begin, end)
   if (verbose) console.log(`Executing ${instructions.length} instructions from ${prefix.toString()}`)
 
