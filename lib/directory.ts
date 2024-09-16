@@ -1,6 +1,6 @@
 import { TupleItem } from 'fdb-tuple';
 import Database from "./database";
-import { tuple } from './encoders';
+import { biguint64LE, tuple } from './encoders';
 import Transaction from "./transaction";
 import { Transformer, defaultTransformer } from "./transformer";
 import { TransactionOptionCode } from "./opts.g";
@@ -61,19 +61,6 @@ const doTxn = <KeyIn, KeyOut, ValIn, ValOut, T>(
   return (dbOrTxn instanceof Database) ? dbOrTxn.doTn(body) : body(dbOrTxn)
 }
 
-const counterEncoding: Transformer<bigint, bigint> = {
-  pack(val) {
-    const b = Buffer.allocUnsafe(8)
-
-    b.writeBigUInt64LE(val)
-
-    return b
-  },
-  unpack: (buf) => {
-    return buf.readBigUInt64LE()
-  },
-}
-
 const voidEncoding: Transformer<void, void> = {
   pack(val) { return emptyBuffer },
   unpack(buf) { return null }
@@ -81,9 +68,8 @@ const voidEncoding: Transformer<void, void> = {
 
 type Version = [number, number, number]
 // I really wish I could just use python's pack here. This is <III written out
-// in long form. (And counterEncoding above is <q). I could use a module like
-// https://www.npmjs.com/package/python-struct , but it feels like overkill for
-// this.
+// in long form. I could use a module like https://www.npmjs.com/package/python-struct,
+// but it feels like overkill for this.
 const versionEncoder: Transformer<Version, Version> = {
   pack(ver) {
     const buf = Buffer.allocUnsafe(12)
@@ -143,7 +129,7 @@ export class HighContentionAllocator {
   recent: Subspace<TupleIn, TupleItem[], void, void>
 
   constructor(subspace: SubspaceAny) {
-    this.counters = subspace.withKeyEncoding(tuple).at(0).withValueEncoding(counterEncoding)
+    this.counters = subspace.withKeyEncoding(tuple).at(0).withValueEncoding(biguint64LE)
     this.recent = subspace.withKeyEncoding(tuple).at(1).withValueEncoding(voidEncoding)
   }
 
