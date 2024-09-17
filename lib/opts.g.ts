@@ -1552,7 +1552,7 @@ export const transactionOptionData: OptionData = {
 
   causal_read_disable: {
     code: 21,
-    description: "undefined",
+    description: "",
     type: 'none',
   },
 
@@ -1576,7 +1576,7 @@ export const transactionOptionData: OptionData = {
 
   check_writes_enable: {
     code: 50,
-    description: "undefined",
+    description: "",
     type: 'none',
   },
 
@@ -1595,13 +1595,13 @@ export const transactionOptionData: OptionData = {
 
   durability_datacenter: {
     code: 110,
-    description: "undefined",
+    description: "",
     type: 'none',
   },
 
   durability_risky: {
     code: 120,
-    description: "undefined",
+    description: "",
     type: 'none',
   },
 
@@ -1650,13 +1650,13 @@ export const transactionOptionData: OptionData = {
 
   debug_dump: {
     code: 400,
-    description: "undefined",
+    description: "",
     type: 'none',
   },
 
   debug_retry_logging: {
     code: 401,
-    description: "undefined",
+    description: "",
     type: 'string',
     paramDescription: "Optional transaction name",
   },
