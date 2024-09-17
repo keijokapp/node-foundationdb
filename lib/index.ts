@@ -1,4 +1,4 @@
-import nativeMod, * as fdb from './native'
+import fdb from './native'
 import Database from './database'
 import {eachOption} from './opts'
 import {NetworkOptions, networkOptionData, DatabaseOptions} from './opts.g'
@@ -9,9 +9,6 @@ import * as apiVersion from './apiVersion'
 
 // Must be called before fdb is initialized. Eg setAPIVersion(510).
 export {set as setAPIVersion} from './apiVersion'
-
-// 'napi'
-export const modType = fdb.type
 
 let initCalled = false
 
@@ -24,14 +21,14 @@ const init = () => {
   if (initCalled) return
   initCalled = true
 
-  nativeMod.startNetwork()
+  fdb.startNetwork()
 
-  process.on('exit', () => nativeMod.stopNetwork())
+  process.on('exit', () => fdb.stopNetwork())
 }
 
 // Destroy the network thread. This is not needed under normal circumstances;
 // but can be used to de-init FDB.
-export const stopNetworkSync = nativeMod.stopNetwork
+export const stopNetworkSync = fdb.stopNetwork
 
 export {default as FDBError} from './error'
 export {default as keySelector, KeySelector} from './keySelector'
@@ -69,7 +66,7 @@ export const directory = new DirectoryLayer() // Convenient root directory
 // Can only be called before open()
 export function configNetwork(netOpts: NetworkOptions) {
   if (initCalled) throw Error('configNetwork must be called before FDB connections are opened')
-  eachOption(networkOptionData, netOpts, (code, val) => nativeMod.setNetworkOption(code, val))
+  eachOption(networkOptionData, netOpts, (code, val) => fdb.setNetworkOption(code, val))
 }
 
 /**
@@ -80,7 +77,7 @@ export function configNetwork(netOpts: NetworkOptions) {
 export function open(clusterFile?: string, dbOpts?: DatabaseOptions) {
   init()
 
-  const db = new Database(nativeMod.createDatabase(clusterFile), root)
+  const db = new Database(fdb.createDatabase(clusterFile), root)
   if (dbOpts) db.setNativeOptions(dbOpts)
   return db
 }
