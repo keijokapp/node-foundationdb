@@ -119,6 +119,5 @@ try {
   throw e
 }
 
-export const type = 'napi'
 mod.FDBError = FDBError
 export default mod as NativeModule
