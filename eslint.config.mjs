@@ -24,9 +24,6 @@ export default [
     }
   },
   {
-    ignores: ['lib/opts.g.ts']
-  },
-  {
     files: ['eslint.config.mjs', 'scripts/**', 'test/**'],
     rules: {
       'import/no-extraneous-dependencies': ['error', { devDependencies: true }],

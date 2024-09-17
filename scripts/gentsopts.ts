@@ -17,8 +17,10 @@ const outFilename = 'lib/opts.g.ts'
 const output = fs.createWriteStream(outFilename)
 
 output.write(`// This file is auto-generated from gentsopts.ts. Do not edit.
-import {OptionData} from './opts'
 
+/* eslint-disable @typescript-eslint/no-duplicate-enum-values */
+
+import { OptionData } from './opts'
 `)
 
 const toUpperCamelCase = (str: string) => str.replace(/(^\w|_\w)/g, c => c.length === 1 ? c.toUpperCase() : c[1].toUpperCase())
@@ -59,6 +61,8 @@ parseString(xml, (err, result) => {
     let enumName = name
 
     if (name.endsWith('Option')) {
+      line('')
+
       line(`export type ${name}s = {`)
       options.forEach(({
         name, type, paramDescription, deprecated
@@ -68,15 +72,17 @@ parseString(xml, (err, result) => {
         if (deprecated) {
           output.write(' // DEPRECATED')
         } else if (paramDescription) {
-          output.write(`  // ${paramDescription}`)
+          output.write(` // ${paramDescription.trim()}`)
         }
 
         line()
       })
-      line('}\n')
+      line('}')
 
       enumName = `${name}Code`
     }
+
+    line('')
 
     line(`export enum ${enumName} {`)
     options.forEach(({
@@ -93,7 +99,7 @@ parseString(xml, (err, result) => {
       line(`  ${toUpperCamelCase(name)} = ${code},\n`)
     })
 
-    line('}\n')
+    line('}')
   })
 
   result.Options.Scope.forEach((scope: any) => {
@@ -102,28 +108,39 @@ parseString(xml, (err, result) => {
     if (name.endsWith('Option')) {
       const options = readOptions(scope.Option)
 
+      line('')
       line(`export const ${toLowerFirst(name)}Data: OptionData = {`)
       options.forEach(({
         name, code, description, paramDescription, type, deprecated
-      }) => {
+      }, i) => {
         line(`  ${name}: {`)
         line(`    code: ${code},`)
-        line(`    description: "${description}",`)
+
+        if (description != null) {
+          line(`    description: '${description.replace(/'/g, '\\\'')}',`)
+        } else {
+          line('    description: \'\',')
+        }
 
         if (deprecated) {
           line(`    deprecated: ${deprecated},`)
         }
 
-        line(`    type: '${type}',`)
-
-        if (type !== 'none') {
-          line(`    paramDescription: "${paramDescription}",`)
+        if (paramDescription != null) {
+          line(`    type: '${type}',`)
+          line(`    paramDescription: '${paramDescription.replace(/'/g, '\\\'')}'`)
+        } else {
+          line(`    type: '${type}'`)
         }
 
-        line('  },\n')
+        if (i < options.length - 1) {
+          line('  },\n')
+        } else {
+          line('  }\n')
+        }
       })
 
-      line('}\n')
+      line('}')
     }
   })
 
