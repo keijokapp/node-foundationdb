@@ -1,8 +1,8 @@
-import 'mocha'
-import assert = require('assert')
+import assert from 'assert'
+import { describe, it } from 'mocha'
 import * as fdb from '../lib'
-import {testApiVersion} from './util'
 import mod from '../lib/native'
+import { testApiVersion } from './util'
 
 fdb.setAPIVersion(testApiVersion)
 
@@ -20,7 +20,6 @@ describe('state tests', () => {
     db.close()
 
     await w.promise
-
   })
 
   it('does nothing if the native module has setAPIVersion called again', () => {

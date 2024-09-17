@@ -1,14 +1,35 @@
-import fdb from './native'
-import Database from './database'
-import {eachOption} from './opts'
-import {NetworkOptions, networkOptionData, DatabaseOptions} from './opts.g'
-import {root} from './subspace'
-import {DirectoryLayer} from './directory'
-
 import * as apiVersion from './apiVersion'
+import Database from './database'
+import { DirectoryLayer } from './directory'
+import fdb from './native'
+import { eachOption } from './opts'
+import { NetworkOptions, networkOptionData, DatabaseOptions } from './opts.g'
+import { root } from './subspace'
+import { strInc } from './util'
 
+export { TupleItem } from 'fdb-tuple'
 // Must be called before fdb is initialized. Eg setAPIVersion(510).
-export {set as setAPIVersion} from './apiVersion'
+export { set as setAPIVersion } from './apiVersion'
+export { default as FDBError } from './error'
+export { default as Database } from './database'
+export { Directory, DirectoryLayer, DirectoryError } from './directory'
+export * as encoders from './encoders'
+export { tuple } from './encoders'
+export { default as keySelector, KeySelector } from './keySelector'
+export {
+  ConflictRangeType,
+  DatabaseOptionCode,
+  DatabaseOptions,
+  ErrorPredicate,
+  MutationType,
+  NetworkOptionCode,
+  NetworkOptions,
+  StreamingMode,
+  TransactionOptionCode,
+  TransactionOptions
+} from './opts.g'
+export { default as Subspace, root } from './subspace'
+export { default as Transaction, Watch } from './transaction'
 
 let initCalled = false
 
@@ -18,54 +39,29 @@ const init = () => {
     throw Error('You must specify an API version to connect to FoundationDB. Eg: fdb.setAPIVersion(510);')
   }
 
-  if (initCalled) return
-  initCalled = true
+  if (!initCalled) {
+    initCalled = true
 
-  fdb.startNetwork()
+    fdb.startNetwork()
 
-  process.on('exit', () => fdb.stopNetwork())
+    process.on('exit', () => fdb.stopNetwork())
+  }
 }
 
 // Destroy the network thread. This is not needed under normal circumstances;
 // but can be used to de-init FDB.
 export const stopNetworkSync = fdb.stopNetwork
 
-export {default as FDBError} from './error'
-export {default as keySelector, KeySelector} from './keySelector'
-
-// These are exported to give consumers access to the type. Databases must
-// always be constructed using open or via a cluster object.
-export {default as Database} from './database'
-export {default as Transaction, Watch} from './transaction'
-export {default as Subspace, root} from './subspace'
-export {Directory, DirectoryLayer, DirectoryError} from './directory'
-
-export {
-  NetworkOptions,
-  NetworkOptionCode,
-  DatabaseOptions,
-  DatabaseOptionCode,
-  TransactionOptions,
-  TransactionOptionCode,
-  StreamingMode,
-  MutationType,
-  ConflictRangeType,
-  ErrorPredicate,
-} from './opts.g'
-
-import {strInc} from './util'
-export const util = {strInc}
-
-export {TupleItem} from 'fdb-tuple'
-
-export * as encoders from './encoders'
-export {tuple} from './encoders'
+export const util = { strInc }
 
 export const directory = new DirectoryLayer() // Convenient root directory
 
 // Can only be called before open()
 export function configNetwork(netOpts: NetworkOptions) {
-  if (initCalled) throw Error('configNetwork must be called before FDB connections are opened')
+  if (initCalled) {
+    throw Error('configNetwork must be called before FDB connections are opened')
+  }
+
   eachOption(networkOptionData, netOpts, (code, val) => fdb.setNetworkOption(code, val))
 }
 
@@ -78,6 +74,10 @@ export function open(clusterFile?: string, dbOpts?: DatabaseOptions) {
   init()
 
   const db = new Database(fdb.createDatabase(clusterFile), root)
-  if (dbOpts) db.setNativeOptions(dbOpts)
+
+  if (dbOpts) {
+    db.setNativeOptions(dbOpts)
+  }
+
   return db
 }

@@ -1,16 +1,22 @@
-import 'mocha'
-import assert = require('assert')
-import { prefix as testPrefix, withEachDb } from './util'
-import {tuple, TupleItem, encoders, Watch, keySelector} from '../lib'
+import assert from 'assert'
+import { describe, it } from 'mocha'
+import {
+  TupleItem, Watch, encoders, keySelector, tuple
+} from '../lib'
 import { Transformer } from '../lib/transformer'
+import { prefix as testPrefix, withEachDb } from './util'
 
-process.on('unhandledRejection', err => { throw err })
+process.on('unhandledRejection', err => {
+  throw err
+})
 
 const codeBuf = (code: number) => {
   const b = Buffer.allocUnsafe(2)
   b.writeUInt16BE(code, 0)
+
   return b
 }
+
 const bakeVersionstamp = (vs: Buffer, code: number): TupleItem => ({
   type: 'versionstamp', value: Buffer.concat([vs, codeBuf(code)])
 })
@@ -26,7 +32,7 @@ withEachDb(db => describe('key value functionality', () => {
     })
   })
 
-  it.skip("returns undefined when keys don't exist in get() and getKey", async () => {
+  it.skip('returns undefined when keys don\'t exist in get() and getKey', async () => {
     await db.doTn(async tn => {
       console.log(await tn.getKey('doesnotexist'))
       // assert.strictEqual(await tn.get('doesnotexist'), undefined)
@@ -58,7 +64,7 @@ withEachDb(db => describe('key value functionality', () => {
 
   it('returns the user value from db.doTransaction', async () => {
     const val = {}
-    const result = await db.doTransaction(async tn => val)
+    const result = await db.doTransaction(async () => val)
     assert.strictEqual(val, result)
   })
 
@@ -70,15 +76,15 @@ withEachDb(db => describe('key value functionality', () => {
     })
   })
 
-  it('obeys transaction options', async function() {
+  it('obeys transaction options', async () => {
     // We can't test all the options, but we can test at least one.
     await db.doTransaction(async tn => {
       tn.set('x', 'hi there')
       assert.strictEqual(await tn.get('x'), undefined)
-    }, {read_your_writes_disable: true})
+    }, { read_your_writes_disable: true })
   })
 
-  it('retries conflicts', async function() {
+  it('retries conflicts', async function () {
     // Transactions do exponential backoff when they conflict, so the time
     // this test takes to run is super variable based on how unlucky we get
     // with concurrency.
@@ -91,13 +97,13 @@ withEachDb(db => describe('key value functionality', () => {
     await db.set(key, encoders.int32BE.pack(0))
 
     let txnAttempts = 0
-    await Promise.all(new Array(concurrentWrites).fill(0).map((_, i) => (
-      db.doTransaction(async tn => {
+    await Promise.all(new Array(concurrentWrites).fill(0).map(
+      () => db.doTransaction(async tn => {
         const val = encoders.int32BE.unpack((await tn.get(key)) as Buffer)
         tn.set(key, encoders.int32BE.pack(val + 1))
         txnAttempts++
       })
-    )))
+    ))
 
     const result = encoders.int32BE.unpack((await db.get(key)) as Buffer)
     assert.strictEqual(result, concurrentWrites)
@@ -118,9 +124,9 @@ withEachDb(db => describe('key value functionality', () => {
       })
     }
 
-    for (const jsonStringifyLength of [1023,1024,1025]) {
+    for (const jsonStringifyLength of [1023, 1024, 1025]) {
       it(`handles ${jsonStringifyLength} length json`, async () => {
-        await setGetAssertEqual(Array.from({length: jsonStringifyLength - 2}, (_, x) => (x % 10) + '').join(''), encoders.json)
+        await setGetAssertEqual(Array.from({ length: jsonStringifyLength - 2 }, (_, x) => `${x % 10}`).join(''), encoders.json)
       })
     }
   })
@@ -167,7 +173,7 @@ withEachDb(db => describe('key value functionality', () => {
       // keyResult should be (keyPrefix) (10 bytes of stamp) (2 byte user suffix) (keySuffix).
       assert.strictEqual(keyResult.length, keyPrefix.length + 10 + keySuffix.length)
       const actualPrefix = keyResult.slice(0, keyPrefix.length)
-      const actualStamp = keyResult.slice(keyPrefix.length, keyPrefix.length + 10)
+      keyResult.slice(keyPrefix.length, keyPrefix.length + 10)
       const actualSuffix = keyResult.slice(keyPrefix.length + 10)
 
       assert.deepStrictEqual(actualPrefix, keyPrefix)
@@ -185,28 +191,29 @@ withEachDb(db => describe('key value functionality', () => {
       const result = await db_.getVersionstampPrefixedValue('hi there')
       assert.notStrictEqual(result, undefined)
 
-      const {stamp, value} = result!
+      const { stamp, value } = result!
       assert.strictEqual(stamp.length, 10) // Opaque.
       assert.strictEqual(value, 'yooo')
     })
 
     it('roundtrips a tuple key', async () => {
       const db_ = db.withKeyEncoding(tuple)
-      await db_.set([1,2,3], 'hi there')
-      const result = await db_.get([1,2,3])
+      await db_.set([1, 2, 3], 'hi there')
+      const result = await db_.get([1, 2, 3])
       assert.strictEqual(result!.toString(), 'hi there')
     })
 
     it('commits a tuple with unbound key versionstamps and bakes the vs and code', async () => {
       const db_ = db.withKeyEncoding(tuple).withValueEncoding(encoders.string)
-      const key1: TupleItem[] = [1,2,3, tuple.unboundVersionstamp()] // should end up with code 0
-      const key2: TupleItem[] = [1,2,3, tuple.unboundVersionstamp()] // code 1
-      const key3: TupleItem[] = [1,2,3, tuple.unboundVersionstamp(321)] // code 321
+      const key1: TupleItem[] = [1, 2, 3, tuple.unboundVersionstamp()] // should end up with code 0
+      const key2: TupleItem[] = [1, 2, 3, tuple.unboundVersionstamp()] // code 1
+      const key3: TupleItem[] = [1, 2, 3, tuple.unboundVersionstamp(321)] // code 321
 
       const actualStamp = await (await db_.doTn(async tn => {
         tn.setVersionstampedKey(key1, '1')
         tn.setVersionstampedKey(key2, '2')
         tn.setVersionstampedKey(key3, '3')
+
         return tn.getVersionstamp()
       })).promise
 
@@ -219,29 +226,30 @@ withEachDb(db => describe('key value functionality', () => {
 
       // const results = await db.getRangeAllStartsWith(tuple.packBound([1,2,3]))
       // assert.strictEqual(results.length, 1)
-      const results = await db_.getRangeAllStartsWith([1,2,3])
+      const results = await db_.getRangeAllStartsWith([1, 2, 3])
 
       assert.deepStrictEqual(results, [
         [key1, '1'],
         [key2, '2'],
-        [key3, '3'],
+        [key3, '3']
       ])
     })
 
     it('does not bake the vs in setVersionstampedKey(bakeAfterCommit=false)', async () => {
       const db_ = db.withKeyEncoding(tuple)
-      const key: TupleItem[] = [1,2,3, {type: 'unbound versionstamp'}]
+      const key: TupleItem[] = [1, 2, 3, { type: 'unbound versionstamp' }]
       await db_.setVersionstampedKey(key, 'hi', false)
 
-      assert.deepStrictEqual(key, [1,2,3, {type: 'unbound versionstamp'}])
+      assert.deepStrictEqual(key, [1, 2, 3, { type: 'unbound versionstamp' }])
     })
 
     it('bakes versionstamps in a subspace', async () => {
-      const subspace = db.withValueEncoding(tuple);
+      const subspace = db.withValueEncoding(tuple)
 
       const value = await db.doTransaction(async tn => {
         const value = [tuple.unboundVersionstamp()]
         tn.at(subspace).setVersionstampedValue('some-key', value)
+
         return value
       })
 
@@ -250,15 +258,16 @@ withEachDb(db => describe('key value functionality', () => {
 
     it('encodes versionstamps in child tuples', async () => {
       const db_ = db.withKeyEncoding(tuple).withValueEncoding(encoders.string)
-      const key: any[] = [1,[2, {type: 'unbound versionstamp'}]]
+      const key: any[] = [1, [2, { type: 'unbound versionstamp' }]]
 
       const actualStamp = await (await db_.doTn(async tn => {
         tn.setVersionstampedKey(key, 'hi there')
+
         return tn.getVersionstamp()
       })).promise
 
       // Check its been baked
-      assert.deepStrictEqual(key, [1,[2, bakeVersionstamp(actualStamp, 0)]])
+      assert.deepStrictEqual(key, [1, [2, bakeVersionstamp(actualStamp, 0)]])
 
       const results = await db_.getRangeAllStartsWith([])
       assert.deepStrictEqual(results, [[key, 'hi there']])
@@ -268,14 +277,15 @@ withEachDb(db => describe('key value functionality', () => {
 
     it('commits a tuple with unbound value versionstamps and bakes the vs and code', async () => {
       const db_ = db.withKeyEncoding(encoders.string).withValueEncoding(tuple)
-      const val1: TupleItem[] = [1,2,3, {type: 'unbound versionstamp'}, 5] // code 1
-      const val2: TupleItem[] = [1,2,3, {type: 'unbound versionstamp'}] // code 2
-      const val3: TupleItem[] = [1,2,3, {type: 'unbound versionstamp', code: 321}] // code 321
+      const val1: TupleItem[] = [1, 2, 3, { type: 'unbound versionstamp' }, 5] // code 1
+      const val2: TupleItem[] = [1, 2, 3, { type: 'unbound versionstamp' }] // code 2
+      const val3: TupleItem[] = [1, 2, 3, { type: 'unbound versionstamp', code: 321 }] // code 321
 
       const actualStamp = await (await db_.doTn(async tn => {
         tn.setVersionstampedValue('1', val1)
         tn.setVersionstampedValue('2', val2)
         tn.setVersionstampedValue('3', val3)
+
         return tn.getVersionstamp()
       })).promise
 
@@ -293,7 +303,7 @@ withEachDb(db => describe('key value functionality', () => {
       assert.deepStrictEqual(results, [
         ['1', val1],
         ['2', val2],
-        ['3', val3],
+        ['3', val3]
       ])
     })
 
@@ -310,10 +320,10 @@ withEachDb(db => describe('key value functionality', () => {
       await tn1.rawCommit()
 
       // This will fail, but it shouldn't crash the program.
-      const vs = tn2.getVersionstamp().promise
+      tn2.getVersionstamp()
 
       // This will throw
-      try { await tn2.rawCommit() } catch (e) {}
+      await tn2.rawCommit().catch(() => {})
     })
   })
 
@@ -345,7 +355,7 @@ withEachDb(db => describe('key value functionality', () => {
       tn2.addWriteConflictKey('conflict')
       await tn2.rawCommit()
 
-      await tn1.rawCommit().catch(e => {})
+      await tn1.rawCommit().catch(() => {})
 
       watch.cancel()
 
@@ -379,8 +389,8 @@ withEachDb(db => describe('key value functionality', () => {
       // https://github.com/josephg/node-foundationdb/issues/40
       const _db = db.getRoot()
 
-      await _db.set(testPrefix + 'somekey', 'val')
-      const val = await _db.get(testPrefix + 'somekey')
+      await _db.set(`${testPrefix}somekey`, 'val')
+      const val = await _db.get(`${testPrefix}somekey`)
       assert.strictEqual(val?.toString(), 'val')
     })
   })

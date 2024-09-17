@@ -1,19 +1,18 @@
-import 'mocha'
-import fdb = require('../lib')
-import assert = require('assert')
+import assert from 'assert'
+import { beforeEach, describe, it } from 'mocha'
+import * as fdb from '../lib'
 import { withEachDb } from './util'
 
-
 withEachDb(db => describe('key value functionality', () => {
-  const batchToStrUnprefix = (batch: [string | Buffer, string | Buffer][]) => (
-    batch.map(([k,v]) => [k.toString(), v.toString()])
-  )
+  const batchToStrUnprefix = (batch: [string | Buffer, string | Buffer][]) => batch.map(([k, v]) => [k.toString(), v.toString()])
 
   const prefill = async () => {
     const _db = db.at(undefined, fdb.encoders.int32BE, fdb.encoders.int32BE)
     await _db.doTransaction(async tn => {
       // Originally I just filled 100 values, but getEstimatedRangeSize needs more.
-      for (let i = 0; i < 1000; i++) tn.set(i, i)
+      for (let i = 0; i < 1000; i++) {
+        tn.set(i, i)
+      }
     })
 
     return _db
@@ -23,12 +22,14 @@ withEachDb(db => describe('key value functionality', () => {
     const _db = await prefill()
     await _db.doTransaction(async tn => {
       let i = 0
+
       for await (const [key, val] of tn.getRange(0, 1000)) {
         assert.strictEqual(key, i)
         assert.strictEqual(val, i)
 
         i++
       }
+
       assert.strictEqual(i, 1000)
     })
   })
@@ -37,11 +38,13 @@ withEachDb(db => describe('key value functionality', () => {
     const _db = await prefill()
     await _db.doTransaction(async tn => {
       let i = 1000
-      for await (const [key, val] of tn.getRange(0, 1000, {reverse: true})) {
+
+      for await (const [key, val] of tn.getRange(0, 1000, { reverse: true })) {
         i--
         assert.strictEqual(key, i)
         assert.strictEqual(val, i)
       }
+
       assert.strictEqual(i, 0)
     })
   })
@@ -50,6 +53,7 @@ withEachDb(db => describe('key value functionality', () => {
     const _db = await prefill()
     await _db.doTransaction(async tn => {
       let i = 0
+
       for await (const batch of tn.getRangeBatch(0, 1000)) {
         for (let k = 0; k < batch.length; k++) {
           const [key, val] = batch[k]
@@ -59,6 +63,7 @@ withEachDb(db => describe('key value functionality', () => {
           i++
         }
       }
+
       assert.strictEqual(i, 1000)
     })
   })
@@ -69,8 +74,11 @@ withEachDb(db => describe('key value functionality', () => {
     // This regression requires that we run a naked query without a prefix,
     // which is difficult to do with the current API
     await db.getRoot().doTransaction(async tn => {
-      for await (const batch of tn.getRange( 'a', 'b' )) {}
-    });
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      for await (const _ of tn.getRange('a', 'b')) {
+        // intentionally empty
+      }
+    })
   })
 
   it('fetches tuple ranges using a prefix correctly', async () => {
@@ -79,7 +87,8 @@ withEachDb(db => describe('key value functionality', () => {
     await _db.set(['a\x00'], 'no')
     await _db.set(['a', 'b'], 'yes')
 
-    assert.deepStrictEqual(await _db.getRangeAllStartsWith(['a']),
+    assert.deepStrictEqual(
+      await _db.getRangeAllStartsWith(['a']),
       [[['a', 'b'], Buffer.from('yes')]]
     )
   })
@@ -130,7 +139,9 @@ withEachDb(db => describe('key value functionality', () => {
       const result = batchToStrUnprefix(
         await db.getRangeAll(
           fdb.keySelector.firstGreaterOrEqual('a'),
-          fdb.keySelector.firstGreaterOrEqual('c')))
+          fdb.keySelector.firstGreaterOrEqual('c')
+        )
+      )
 
       assert.deepEqual(result, data.slice(0, 2)) // 'a', 'b'.
     })
@@ -139,7 +150,9 @@ withEachDb(db => describe('key value functionality', () => {
       const result = batchToStrUnprefix(
         await db.getRangeAll(
           fdb.keySelector.firstGreaterThan('a'),
-          fdb.keySelector.firstGreaterThan('c')))
+          fdb.keySelector.firstGreaterThan('c')
+        )
+      )
 
       assert.deepEqual(result, data.slice(1)) // 'b', 'c'.
     })

@@ -1,22 +1,24 @@
 import FDBError from './error'
+import { KeySelector } from './keySelector'
 import * as fdb from './native'
-import Transaction, { RangeOptions, Watch } from './transaction'
-import {Transformer} from './transformer'
-import {NativeValue} from './native'
-import {KeySelector} from './keySelector'
-import Subspace, { root, GetSubspace, isGetSubspace } from './subspace'
-import {eachOption} from './opts'
-import {DatabaseOptions,
+import { NativeValue } from './native'
+import { eachOption } from './opts'
+import {
+  DatabaseOptions,
+  MutationType,
   TransactionOptions,
   databaseOptionData,
-  MutationType,
-  transactionOptionData,
+  transactionOptionData
 } from './opts.g'
+import Subspace, { root, GetSubspace, isGetSubspace } from './subspace'
+import Transaction, { RangeOptions, Watch } from './transaction'
+import { Transformer } from './transformer'
 
 export type WatchWithValue<Value> = Watch & { value: Value | undefined }
 
 export default class Database<KeyIn = NativeValue, KeyOut = Buffer, ValIn = NativeValue, ValOut = Buffer> {
   _db: fdb.NativeDatabase
+
   subspace: Subspace<KeyIn, KeyOut, ValIn, ValOut>
 
   constructor(db: fdb.NativeDatabase, subspace: Subspace<KeyIn, KeyOut, ValIn, ValOut>) {
@@ -38,8 +40,13 @@ export default class Database<KeyIn = NativeValue, KeyOut = Buffer, ValIn = Nati
     return new Database(this._db, root)
   }
 
-  getSubspace() { return this.subspace }
-  getPrefix(): Buffer { return this.subspace.prefix }
+  getSubspace() {
+    return this.subspace
+  }
+
+  getPrefix(): Buffer {
+    return this.subspace.prefix
+  }
 
   /** Create a shallow reference to the database at a specified subspace */
   at<CKI, CKO, CVI, CVO>(hasSubspace: GetSubspace<CKI, CKO, CVI, CVO>): Database<CKI, CKO, CVI, CVO>
@@ -65,8 +72,11 @@ export default class Database<KeyIn = NativeValue, KeyOut = Buffer, ValIn = Nati
     | Database<KeyIn, KeyOut, CVI, CVO>
     | Database<CKI, CKO, CVI, CVO>;
   at<CKI, CKO, CVI, CVO>(prefixOrSubspace?: GetSubspace<CKI, CKO, CVI, CVO> | KeyIn, keyXf?: Transformer<unknown, unknown>, valueXf?: Transformer<unknown, unknown>) {
-    if (isGetSubspace(prefixOrSubspace)) return new Database(this._db, prefixOrSubspace.getSubspace())
-    else return new Database(this._db, this.subspace.at(prefixOrSubspace, keyXf, valueXf))
+    if (isGetSubspace(prefixOrSubspace)) {
+      return new Database(this._db, prefixOrSubspace.getSubspace())
+    }
+
+    return new Database(this._db, this.subspace.at(prefixOrSubspace, keyXf, valueXf))
   }
 
   withKeyEncoding(keyXf?: undefined): Database<NativeValue, Buffer, ValIn, ValOut>
@@ -91,13 +101,15 @@ export default class Database<KeyIn = NativeValue, KeyOut = Buffer, ValIn = Nati
   async doTn<T>(body: (tn: Transaction<KeyIn, KeyOut, ValIn, ValOut>) => Promise<T>, opts?: TransactionOptions): Promise<T> {
     const tn = this._db.createTransaction()
 
-    if (opts) eachOption(transactionOptionData, opts, (code, val) => tn.setOption(code, val))
+    if (opts) {
+      eachOption(transactionOptionData, opts, (code, val) => tn.setOption(code, val))
+    }
 
     let transaction
 
     // Logic described here:
     // https://apple.github.io/foundationdb/api-c.html#c.fdb_transaction_on_error
-    do {
+    for (;;) {
       transaction?._invalidate()
 
       transaction = new Transaction<KeyIn, KeyOut, ValIn, ValOut>(tn, false, this.subspace)
@@ -113,8 +125,9 @@ export default class Database<KeyIn = NativeValue, KeyOut = Buffer, ValIn = Nati
           throw err
         }
       }
-    } while (true)
+    }
   }
+
   // Alias for db.doTn.
   async doTransaction<T>(body: (tn: Transaction<KeyIn, KeyOut, ValIn, ValOut>) => Promise<T>, opts?: TransactionOptions): Promise<T> {
     return this.doTn(body, opts)
@@ -125,6 +138,7 @@ export default class Database<KeyIn = NativeValue, KeyOut = Buffer, ValIn = Nati
     return this.doTransaction(
       tn => {
         body(tn)
+
         return Promise.resolve()
       },
       opts
@@ -135,7 +149,9 @@ export default class Database<KeyIn = NativeValue, KeyOut = Buffer, ValIn = Nati
   rawCreateTransaction(opts?: TransactionOptions) {
     const tn = this._db.createTransaction()
 
-    if (opts) eachOption(transactionOptionData, opts, (code, val) => tn.setOption(code, val))
+    if (opts) {
+      eachOption(transactionOptionData, opts, (code, val) => tn.setOption(code, val))
+    }
 
     return new Transaction<KeyIn, KeyOut, ValIn, ValOut>(tn, false, this.subspace)
   }
@@ -143,9 +159,11 @@ export default class Database<KeyIn = NativeValue, KeyOut = Buffer, ValIn = Nati
   get(key: KeyIn): Promise<ValOut | undefined> {
     return this.doTransaction(tn => tn.snapshot().get(key))
   }
+
   getKey(selector: KeyIn | KeySelector<KeyIn>): Promise<KeyOut | undefined> {
     return this.doTransaction(tn => tn.snapshot().getKey(selector))
   }
+
   getVersionstampPrefixedValue(key: KeyIn): Promise<{stamp: Buffer, value?: ValOut} | undefined> {
     return this.doTransaction(tn => tn.snapshot().getVersionstampPrefixedValue(key))
   }
@@ -171,6 +189,7 @@ export default class Database<KeyIn = NativeValue, KeyOut = Buffer, ValIn = Nati
       const value = await tn.get(key)
       const watch = tn.watch(key) as WatchWithValue<ValOut>
       watch.value = value
+
       return watch
     })
   }
@@ -182,6 +201,7 @@ export default class Database<KeyIn = NativeValue, KeyOut = Buffer, ValIn = Nati
   setAndWatch(key: KeyIn, value: ValIn): Promise<Watch> {
     return this.doTransaction(async tn => {
       tn.set(key, value)
+
       return tn.watch(key)
     })
   }
@@ -189,14 +209,16 @@ export default class Database<KeyIn = NativeValue, KeyOut = Buffer, ValIn = Nati
   clearAndWatch(key: KeyIn): Promise<Watch> {
     return this.doTransaction(async tn => {
       tn.clear(key)
+
       return tn.watch(key)
     })
   }
 
   getRangeAll(
-      start?: KeyIn | KeySelector<undefined | KeyIn>,
-      end?: KeyIn | KeySelector<undefined | KeyIn>,
-      opts?: RangeOptions) {
+    start?: KeyIn | KeySelector<undefined | KeyIn>,
+    end?: KeyIn | KeySelector<undefined | KeyIn>,
+    opts?: RangeOptions
+  ) {
     return this.doTransaction(tn => tn.snapshot().getRangeAll(start, end, opts))
   }
 
@@ -216,34 +238,68 @@ export default class Database<KeyIn = NativeValue, KeyOut = Buffer, ValIn = Nati
   atomicOpNative(op: MutationType, key: NativeValue, oper: NativeValue) {
     return this.doOneshot(tn => tn.atomicOpNative(op, key, oper))
   }
+
   atomicOp(op: MutationType, key: KeyIn, oper: ValIn) {
     return this.doOneshot(tn => tn.atomicOp(op, key, oper))
   }
+
   atomicOpKB(op: MutationType, key: KeyIn, oper: Buffer) {
     return this.doOneshot(tn => tn.atomicOpKB(op, key, oper))
   }
-  add(key: KeyIn, oper: ValIn) { return this.atomicOp(MutationType.Add, key, oper) }
-  max(key: KeyIn, oper: ValIn) { return this.atomicOp(MutationType.Max, key, oper) }
-  min(key: KeyIn, oper: ValIn) { return this.atomicOp(MutationType.Min, key, oper) }
+
+  add(key: KeyIn, oper: ValIn) {
+    return this.atomicOp(MutationType.Add, key, oper)
+  }
+
+  max(key: KeyIn, oper: ValIn) {
+    return this.atomicOp(MutationType.Max, key, oper)
+  }
+
+  min(key: KeyIn, oper: ValIn) {
+    return this.atomicOp(MutationType.Min, key, oper)
+  }
 
   // Raw buffer variants are provided here to support fancy bit packing semantics.
-  bitAnd(key: KeyIn, oper: ValIn) { return this.atomicOp(MutationType.BitAnd, key, oper) }
-  bitOr(key: KeyIn, oper: ValIn) { return this.atomicOp(MutationType.BitOr, key, oper) }
-  bitXor(key: KeyIn, oper: ValIn) { return this.atomicOp(MutationType.BitXor, key, oper) }
-  bitAndBuf(key: KeyIn, oper: Buffer) { return this.atomicOpKB(MutationType.BitAnd, key, oper) }
-  bitOrBuf(key: KeyIn, oper: Buffer) { return this.atomicOpKB(MutationType.BitOr, key, oper) }
-  bitXorBuf(key: KeyIn, oper: Buffer) { return this.atomicOpKB(MutationType.BitXor, key, oper) }
+  bitAnd(key: KeyIn, oper: ValIn) {
+    return this.atomicOp(MutationType.BitAnd, key, oper)
+  }
+
+  bitOr(key: KeyIn, oper: ValIn) {
+    return this.atomicOp(MutationType.BitOr, key, oper)
+  }
+
+  bitXor(key: KeyIn, oper: ValIn) {
+    return this.atomicOp(MutationType.BitXor, key, oper)
+  }
+
+  bitAndBuf(key: KeyIn, oper: Buffer) {
+    return this.atomicOpKB(MutationType.BitAnd, key, oper)
+  }
+
+  bitOrBuf(key: KeyIn, oper: Buffer) {
+    return this.atomicOpKB(MutationType.BitOr, key, oper)
+  }
+
+  bitXorBuf(key: KeyIn, oper: Buffer) {
+    return this.atomicOpKB(MutationType.BitXor, key, oper)
+  }
 
   // Performs lexicographic comparison of byte strings. Sets the value in the
   // database to the lexographical min / max of its current value and the
   // value supplied as a parameter. If the key does not exist in the database
   // this is the same as set().
-  byteMin(key: KeyIn, oper: ValIn) { return this.atomicOp(MutationType.ByteMin, key, oper) }
-  byteMax(key: KeyIn, oper: ValIn) { return this.atomicOp(MutationType.ByteMax, key, oper) }
+  byteMin(key: KeyIn, oper: ValIn) {
+    return this.atomicOp(MutationType.ByteMin, key, oper)
+  }
+
+  byteMax(key: KeyIn, oper: ValIn) {
+    return this.atomicOp(MutationType.ByteMax, key, oper)
+  }
 
   setVersionstampedKey(key: KeyIn, value: ValIn, bakeAfterCommit?: boolean) {
     return this.doOneshot(tn => tn.setVersionstampedKey(key, value, bakeAfterCommit))
   }
+
   setVersionstampSuffixedKey(key: KeyIn, value: ValIn, suffix?: Buffer) {
     return this.doOneshot(tn => tn.setVersionstampSuffixedKey(key, value, suffix))
   }

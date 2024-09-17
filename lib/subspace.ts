@@ -3,26 +3,32 @@
 // it also includes kv transformers, so a subspace here will also automatically
 // encode and decode keys and values.
 
-import { Transformer, prefixTransformer, defaultTransformer, defaultGetRange } from "./transformer"
-import { NativeValue } from "./native"
+import {
+  Transformer, prefixTransformer, defaultTransformer, defaultGetRange
+} from './transformer'
+import { NativeValue } from './native'
 import {
   asBuf, concat2, emptyBuffer, startsWith, strInc
-} from "./util"
+} from './util'
 import { UnboundStamp } from './versionstamp.js'
 
 const concatPrefix = (p1: Buffer, p2?: string | Buffer) => (
-  p2 == null ? p1
-    : p1.length === 0 ? asBuf(p2)
-    : concat2(p1, asBuf(p2))
+  // eslint-disable-next-line no-nested-ternary
+  p2 == null
+    ? p1
+    : p1.length === 0
+      ? asBuf(p2)
+      : concat2(p1, asBuf(p2))
 )
-
 
 // Template parameters refer to the types of the allowed key and values you pass
 // in to the database (eg in a set(keyin, valin) call) and the types of keys and
 // values returned. KeyIn == KeyOut and ValIn == ValOut in almost all cases.
 export default class Subspace<KeyIn = NativeValue, KeyOut = Buffer, ValIn = NativeValue, ValOut = Buffer> {
   prefix: Buffer // This is baked into bakedKeyXf but we hold it so we can call `.at`.
+
   keyXf: Transformer<KeyIn, KeyOut>
+
   valueXf: Transformer<ValIn, ValOut>
 
   _bakedKeyXf: Transformer<KeyIn, KeyOut> // This is cached from _prefix + keyXf.
@@ -93,14 +99,18 @@ export default class Subspace<KeyIn = NativeValue, KeyOut = Buffer, ValIn = Nati
   }
 
   // GetSubspace implementation
-  getSubspace() { return this }
+  getSubspace() {
+    return this
+  }
 
   packKey(key: KeyIn): NativeValue {
     return this._bakedKeyXf.pack(key)
   }
+
   unpackKey(key: Buffer): KeyOut {
     return this._bakedKeyXf.unpack(key)
   }
+
   packKeyUnboundVersionstamp(key: KeyIn): UnboundStamp {
     if (!this._bakedKeyXf.packUnboundVersionstamp) {
       throw TypeError('Value encoding does not support unbound versionstamps. Use setVersionstampPrefixedValue instead')
@@ -108,12 +118,15 @@ export default class Subspace<KeyIn = NativeValue, KeyOut = Buffer, ValIn = Nati
 
     return this._bakedKeyXf.packUnboundVersionstamp(key)
   }
+
   packValue(val: ValIn): NativeValue {
     return this.valueXf.pack(val)
   }
+
   unpackValue(val: Buffer): ValOut {
     return this.valueXf.unpack(val)
   }
+
   packValueUnboundVersionstamp(value: ValIn): UnboundStamp {
     if (!this.valueXf.packUnboundVersionstamp) {
       throw TypeError('Value encoding does not support unbound versionstamps. Use setVersionstampPrefixedValue instead')
@@ -160,6 +173,4 @@ export interface GetSubspace<KI, KO, VI, VO> {
   getSubspace(): Subspace<KI, KO, VI, VO>
 }
 
-export const isGetSubspace = <KI, KO, VI, VO>(obj: any): obj is GetSubspace<KI, KO, VI, VO> => {
-  return obj != null && typeof obj === 'object' && 'getSubspace' in obj
-}
+export const isGetSubspace = <KI, KO, VI, VO>(obj: any): obj is GetSubspace<KI, KO, VI, VO> => obj != null && typeof obj === 'object' && 'getSubspace' in obj

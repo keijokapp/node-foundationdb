@@ -6,40 +6,36 @@
 // It is only necessary to re-run this when FDB adds / deprecates options.
 //
 // Usage: node dist/lib/gentsopts.js <path to foundationdb checkout>
-import fs = require('fs')
-import xml2js = require('xml2js') // I could type this but its not important enough.
+import fs from 'fs'
+import xml2js from 'xml2js' // I could type this but its not important enough.
 
-const {parseString} = xml2js
-const fdbSourceLocation = process.argv[2] ?? (process.env.HOME + '/3rdparty/foundationdb')
-const xml = fs.readFileSync(fdbSourceLocation + '/fdbclient/vexillographer/fdb.options', 'utf8')
+const { parseString } = xml2js
+const fdbSourceLocation = process.argv[2] ?? `${process.env.HOME}/3rdparty/foundationdb`
+const xml = fs.readFileSync(`${fdbSourceLocation}/fdbclient/vexillographer/fdb.options`, 'utf8')
 
 const outFilename = 'lib/opts.g.ts'
 const output = fs.createWriteStream(outFilename)
 
-const comment = '\/\/' // I'm really sad that this is needed.
-output.write(`${comment} This file is auto-generated from gentsopts.ts. Do not edit.
+output.write(`// This file is auto-generated from gentsopts.ts. Do not edit.
 import {OptionData} from './opts'
 
 `)
 
-const toUpperCamelCase = (str: string) => str.replace(/(^\w|_\w)/g, c =>
-  c.length == 1 ? c.toUpperCase() : c[1].toUpperCase()
-)
+const toUpperCamelCase = (str: string) => str.replace(/(^\w|_\w)/g, c => c.length === 1 ? c.toUpperCase() : c[1].toUpperCase())
+
 const toLowerFirst = (str: string) => str[0].toLowerCase() + str.slice(1)
 
 const splitLines = (str: string) => str.split(/\s*(.{10,70})(?:\s+|$)/).filter(x => x)
 
 type OptionType = 'string' | 'int' | 'bytes' | 'none'
-const readOptions = (data: any[]) => (
-  data.map(({$:opt}: {$: any}) => ({
-    name: opt.name as string,
-    code: opt.code as number,
-    description: opt.description as string | undefined,
-    paramDescription: opt.paramDescription as string | undefined,
-    type: (opt.paramType ? opt.paramType.toLowerCase() : 'none') as OptionType,
-    deprecated: (opt.description && opt.description.toLowerCase() === 'deprecated')
-  }))
-)
+const readOptions = (data: any[]) => data.map(({ $: opt }: {$: any}) => ({
+  name: opt.name as string,
+  code: opt.code as number,
+  description: opt.description as string | undefined,
+  paramDescription: opt.paramDescription as string | undefined,
+  type: (opt.paramType ? opt.paramType.toLowerCase() : 'none') as OptionType,
+  deprecated: opt.description && opt.description.toLowerCase() === 'deprecated'
+}))
 
 const typeToTs = (type: 'string' | 'int' | 'bytes' | 'none') => ({
   string: 'string',
@@ -49,34 +45,46 @@ const typeToTs = (type: 'string' | 'int' | 'bytes' | 'none') => ({
 }[type])
 
 parseString(xml, (err, result) => {
-  if (err) throw err
+  if (err) {
+    throw err
+  }
 
-  const line = (str: string = '') => output.write(str + '\n')
+  const line = (str: string = '') => output.write(`${str}\n`)
 
   // First do all the normal user-visible stuff
   result.Options.Scope.forEach((scope: any) => {
-    const name: string = scope.$.name
+    const { name } = scope.$
     const options = readOptions(scope.Option)
 
     let enumName = name
 
     if (name.endsWith('Option')) {
       line(`export type ${name}s = {`)
-      options.forEach(({name, type, paramDescription, deprecated}) => {
+      options.forEach(({
+        name, type, paramDescription, deprecated
+      }) => {
         output.write(`  ${name}?: undefined | ${typeToTs(type)}`)
-        if (deprecated) output.write(` ${comment} DEPRECATED`)
-        else if (paramDescription) output.write(`  ${comment} ${paramDescription}`)
+
+        if (deprecated) {
+          output.write(' // DEPRECATED')
+        } else if (paramDescription) {
+          output.write(`  // ${paramDescription}`)
+        }
+
         line()
       })
-      line(`}\n`)
+      line('}\n')
 
-      enumName = name + 'Code'
+      enumName = `${name}Code`
     }
 
     line(`export enum ${enumName} {`)
-    options.forEach(({name, code, type, description, deprecated}) => {
-      if (deprecated) line(`  ${comment} DEPRECATED`)
-      else if (description) {
+    options.forEach(({
+      name, code, description, deprecated
+    }) => {
+      if (deprecated) {
+        line('  // DEPRECATED')
+      } else if (description) {
         output.write('  /**\n')
         output.write(splitLines(description).map(s => `   * ${s}\n`).join(''))
         output.write('   */\n')
@@ -85,25 +93,37 @@ parseString(xml, (err, result) => {
       line(`  ${toUpperCamelCase(name)} = ${code},\n`)
     })
 
-    line(`}\n`)
+    line('}\n')
   })
 
   result.Options.Scope.forEach((scope: any) => {
-    const name: string = scope.$.name
+    const { name } = scope.$
+
     if (name.endsWith('Option')) {
       const options = readOptions(scope.Option)
 
-      line(`export const ${toLowerFirst(name) + 'Data'}: OptionData = {`)
-      options.forEach(({name, code, description, paramDescription, type, deprecated}) => {
+      line(`export const ${toLowerFirst(name)}Data: OptionData = {`)
+      options.forEach(({
+        name, code, description, paramDescription, type, deprecated
+      }) => {
         line(`  ${name}: {`)
         line(`    code: ${code},`)
         line(`    description: "${description}",`)
-        if (deprecated) line(`    deprecated: ${deprecated},`)
+
+        if (deprecated) {
+          line(`    deprecated: ${deprecated},`)
+        }
+
         line(`    type: '${type}',`)
-        if (type !== 'none') line(`    paramDescription: "${paramDescription}",`)
-        line(`  },\n`)
+
+        if (type !== 'none') {
+          line(`    paramDescription: "${paramDescription}",`)
+        }
+
+        line('  },\n')
       })
-      line(`}\n`)
+
+      line('}\n')
     }
   })
 
