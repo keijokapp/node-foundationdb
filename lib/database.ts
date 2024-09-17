@@ -122,10 +122,13 @@ export default class Database<KeyIn = NativeValue, KeyOut = Buffer, ValIn = Nati
 
   doOneshot(body: (tn: Transaction<KeyIn, KeyOut, ValIn, ValOut>) => void, opts?: TransactionOptions): Promise<void> {
     // TODO: Could this be written better? It doesn't need a retry loop.
-    return this.doTransaction(tn => {
-      body(tn)
-      return Promise.resolve()
-    })
+    return this.doTransaction(
+      tn => {
+        body(tn)
+        return Promise.resolve()
+      },
+      opts
+    )
   }
 
   // Infrequently used. You probably want to use doTransaction instead.
