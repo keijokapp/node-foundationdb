@@ -30,6 +30,7 @@ export {
 } from './opts.g'
 export { default as Subspace, root } from './subspace'
 export { default as Transaction, Watch } from './transaction'
+export type { Transformer } from './transformer'
 
 let initCalled = false
 
