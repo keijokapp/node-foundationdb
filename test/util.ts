@@ -1,4 +1,6 @@
-import 'mocha'
+import {
+  after, afterEach, beforeEach, describe
+} from 'mocha'
 import * as fdb from '../lib'
 
 // We'll tuck everything behind this prefix and delete it all when the tests finish running.

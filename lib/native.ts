@@ -1,8 +1,7 @@
-import {platform} from 'os'
+import { platform } from 'os'
 import * as path from 'path'
-
 import FDBError from './error'
-import {MutationType, StreamingMode} from './opts.g'
+import { MutationType, StreamingMode } from './opts.g'
 
 export type NativeValue = string | Buffer
 
@@ -73,7 +72,7 @@ export interface NativeDatabase {
 export enum ErrorPredicate {
   Retryable = 50000,
   MaybeCommitted = 50001,
-  RetryableNotCommitted = 50002,
+  RetryableNotCommitted = 50002
 }
 
 export interface NativeModule {
@@ -97,27 +96,34 @@ const rootDir = __dirname.endsWith(`dist${path.sep}lib`) // gross.
   : path.resolve(`${__dirname}/..`)
 
 let mod
+
 try {
+  // eslint-disable-next-line global-require, @typescript-eslint/no-require-imports
   mod = require('node-gyp-build')(rootDir)
 } catch (e) {
+  /* eslint-disable no-console */
   console.error('Could not load native module. Make sure the foundationdb client is installed and')
   console.error('(on windows) in your PATH. https://www.foundationdb.org/download/')
 
   // This is way more involved than it needs to be, but error messages are important.
   if (platform() === 'darwin') {
-    const ldLibraryPath = process.env['DYLD_LIBRARY_PATH'] ?? ''
+    const ldLibraryPath = process.env.DYLD_LIBRARY_PATH ?? ''
+
     if (!ldLibraryPath.includes('/usr/local/lib')) {
-      const configFile = process.env['SHELL'] === '/bin/zsh' ? '.zshrc' : '.bash_profile'
+      const configFile = process.env.SHELL === '/bin/zsh' ? '.zshrc' : '.bash_profile'
 
       console.error()
       console.error('MacOS note: You also need to set DYLD_LIBRARY_PATH="/usr/local/lib" due to notarization. Run:\n')
-      console.error(`  echo \'export DYLD_LIBRARY_PATH="/usr/local/lib"\' >> ~/${configFile}`)
+      console.error(`  echo 'export DYLD_LIBRARY_PATH="/usr/local/lib"' >> ~/${configFile}`)
       console.error(`  source ~/${configFile}`)
       console.error('\nThen retry. See https://github.com/josephg/node-foundationdb/issues/42 for details.\n\n')
     }
   }
+  /* eslint-enable no-console */
+
   throw e
 }
 
 mod.FDBError = FDBError
+
 export default mod as NativeModule
