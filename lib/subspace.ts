@@ -3,26 +3,32 @@
 // it also includes kv transformers, so a subspace here will also automatically
 // encode and decode keys and values.
 
-import { Transformer, prefixTransformer, defaultTransformer, defaultGetRange } from "./transformer"
-import { NativeValue } from "./native"
+import {
+  Transformer, prefixTransformer, defaultTransformer, defaultGetRange
+} from './transformer'
+import { NativeValue } from './native'
 import {
   asBuf, concat2, emptyBuffer, startsWith, strInc
-} from "./util"
+} from './util'
 import { UnboundStamp } from './versionstamp.js'
 
 const concatPrefix = (p1: Buffer, p2?: string | Buffer) => (
-  p2 == null ? p1
-    : p1.length === 0 ? asBuf(p2)
-    : concat2(p1, asBuf(p2))
+  // eslint-disable-next-line no-nested-ternary
+  p2 == null
+    ? p1
+    : p1.length === 0
+      ? asBuf(p2)
+      : concat2(p1, asBuf(p2))
 )
-
 
 // Template parameters refer to the types of the allowed key and values you pass
 // in to the database (eg in a set(keyin, valin) call) and the types of keys and
 // values returned. KeyIn == KeyOut and ValIn == ValOut in almost all cases.
 export default class Subspace<KeyIn = NativeValue, KeyOut = Buffer, ValIn = NativeValue, ValOut = Buffer> {
   prefix: Buffer // This is baked into bakedKeyXf but we hold it so we can call `.at`.
+
   keyXf: Transformer<KeyIn, KeyOut>
+
   valueXf: Transformer<ValIn, ValOut>
 
   _bakedKeyXf: Transformer<KeyIn, KeyOut> // This is cached from _prefix + keyXf.
@@ -42,27 +48,27 @@ export default class Subspace<KeyIn = NativeValue, KeyOut = Buffer, ValIn = Nati
   // legit all the variants. Typescript can probably infer using less than this,
   // but I honestly don't trust it not to land with any or unknown or something
   // in some of the derived types
-  at(prefix?: KeyIn, keyXf?: undefined, valueXf?: undefined): Subspace<KeyIn, KeyOut, ValIn, ValOut>;
-  at<CKI, CKO>(prefix: KeyIn | undefined, keyXf: Transformer<CKI, CKO>, valueXf?: undefined): Subspace<CKI, CKO, ValIn, ValOut>;
-  at<CVI, CVO>(prefix: KeyIn | undefined, keyXf: undefined, valueXf: Transformer<CVI, CVO>): Subspace<KeyIn, KeyOut, CVI, CVO>;
-  at<CKI, CKO, CVI, CVO>(prefix: KeyIn | undefined, keyXf: Transformer<CKI, CKO>, valueXf: Transformer<CVI, CVO>): Subspace<CKI, CKO, CVI, CVO>;
+  at(prefix?: KeyIn, keyXf?: undefined, valueXf?: undefined): Subspace<KeyIn, KeyOut, ValIn, ValOut>
+  at<CKI, CKO>(prefix: KeyIn | undefined, keyXf: Transformer<CKI, CKO>, valueXf?: undefined): Subspace<CKI, CKO, ValIn, ValOut>
+  at<CVI, CVO>(prefix: KeyIn | undefined, keyXf: undefined, valueXf: Transformer<CVI, CVO>): Subspace<KeyIn, KeyOut, CVI, CVO>
+  at<CKI, CKO, CVI, CVO>(prefix: KeyIn | undefined, keyXf: Transformer<CKI, CKO>, valueXf: Transformer<CVI, CVO>): Subspace<CKI, CKO, CVI, CVO>
   at<CKI, CKO>(prefix: KeyIn | undefined, keyXf?: Transformer<CKI, CKO>, valueXf?: undefined):
     | Subspace<KeyIn, KeyOut, ValIn, ValOut>
-    | Subspace<CKI, CKO, ValIn, ValOut>;
+    | Subspace<CKI, CKO, ValIn, ValOut>
   at<CVI, CVO>(prefix: KeyIn | undefined, keyXf: undefined, valueXf?: Transformer<CVI, CVO>):
     | Subspace<KeyIn, KeyOut, ValIn, ValOut>
-    | Subspace<KeyIn, KeyOut, CVI, CVO>;
+    | Subspace<KeyIn, KeyOut, CVI, CVO>
   at<CKI, CKO, CVI, CVO>(prefix: KeyIn | undefined, keyXf: Transformer<CKI, CKO> | undefined, valueXf: Transformer<CVI, CVO>):
     | Subspace<KeyIn, KeyOut, CVI, CVO>
-    | Subspace<CKI, CKO, CVI, CVO>;
+    | Subspace<CKI, CKO, CVI, CVO>
   at<CKI, CKO, CVI, CVO>(prefix: KeyIn | undefined, keyXf: Transformer<CKI, CKO>, valueXf?: Transformer<CVI, CVO>):
     | Subspace<CKI, CKO, ValIn, ValOut>
-    | Subspace<CKI, CKO, CVI, CVO>;
+    | Subspace<CKI, CKO, CVI, CVO>
   at<CKI, CKO, CVI, CVO>(prefix?: KeyIn, keyXf?: Transformer<CKI, CKO>, valueXf?: Transformer<CVI, CVO>):
     | Subspace<KeyIn, KeyOut, ValIn, ValOut>
     | Subspace<CKI, CKO, ValIn, ValOut>
     | Subspace<KeyIn, KeyOut, CVI, CVO>
-    | Subspace<CKI, CKO, CVI, CVO>;
+    | Subspace<CKI, CKO, CVI, CVO>
   at(prefix?: KeyIn, keyXf: Transformer<unknown, unknown> = this.keyXf, valueXf: Transformer<unknown, unknown> = this.valueXf) {
     const packedPrefix = prefix !== undefined ? this.keyXf.pack(prefix) : undefined
 
@@ -98,9 +104,11 @@ export default class Subspace<KeyIn = NativeValue, KeyOut = Buffer, ValIn = Nati
   packKey(key: KeyIn): NativeValue {
     return this._bakedKeyXf.pack(key)
   }
+
   unpackKey(key: Buffer): KeyOut {
     return this._bakedKeyXf.unpack(key)
   }
+
   packKeyUnboundVersionstamp(key: KeyIn): UnboundStamp {
     if (!this._bakedKeyXf.packUnboundVersionstamp) {
       throw TypeError('Value encoding does not support unbound versionstamps. Use setVersionstampPrefixedValue instead')
@@ -108,12 +116,15 @@ export default class Subspace<KeyIn = NativeValue, KeyOut = Buffer, ValIn = Nati
 
     return this._bakedKeyXf.packUnboundVersionstamp(key)
   }
+
   packValue(val: ValIn): NativeValue {
     return this.valueXf.pack(val)
   }
+
   unpackValue(val: Buffer): ValOut {
     return this.valueXf.unpack(val)
   }
+
   packValueUnboundVersionstamp(value: ValIn): UnboundStamp {
     if (!this.valueXf.packUnboundVersionstamp) {
       throw TypeError('Value encoding does not support unbound versionstamps. Use setVersionstampPrefixedValue instead')
@@ -129,7 +140,7 @@ export default class Subspace<KeyIn = NativeValue, KeyOut = Buffer, ValIn = Nati
    * @param end End of the key range. If undefined, the end of the subspace is assumed.
    * @returns Encoded range as a `{ begin, end }` record.
    */
-  packRange(start?: KeyIn, end?: KeyIn): {begin: NativeValue, end: NativeValue} {
+  packRange(start?: KeyIn, end?: KeyIn): { begin: NativeValue, end: NativeValue } {
     return {
       begin: start !== undefined ? this._bakedKeyXf.pack(start) : this.prefix,
       end: end !== undefined ? this._bakedKeyXf.pack(end) : strInc(this.prefix)
@@ -142,7 +153,7 @@ export default class Subspace<KeyIn = NativeValue, KeyOut = Buffer, ValIn = Nati
    * @param prefix Start of the key key range. If undefined, the start of the subspace is assumed.
    * @returns Encoded range as a `{ begin, end }` record.
    */
-  packRangeStartsWith(prefix: KeyIn): {begin: NativeValue, end: NativeValue} {
+  packRangeStartsWith(prefix: KeyIn): { begin: NativeValue, end: NativeValue } {
     const encodePrefix = this._bakedKeyXf.range ?? defaultGetRange
 
     return encodePrefix(prefix, this._bakedKeyXf)
@@ -160,6 +171,4 @@ export interface GetSubspace<KI, KO, VI, VO> {
   getSubspace(): Subspace<KI, KO, VI, VO>
 }
 
-export const isGetSubspace = <KI, KO, VI, VO>(obj: any): obj is GetSubspace<KI, KO, VI, VO> => {
-  return obj != null && typeof obj === 'object' && 'getSubspace' in obj
-}
+export const isGetSubspace = <KI, KO, VI, VO>(obj: any): obj is GetSubspace<KI, KO, VI, VO> => obj != null && typeof obj === 'object' && 'getSubspace' in obj

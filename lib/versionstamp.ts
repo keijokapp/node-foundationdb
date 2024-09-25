@@ -4,11 +4,13 @@ import { emptyBuffer } from './util'
 // Versionstamp that isn't yet bound to an actual version. If codePos is set,
 // the database will also fill in an incrementing 2 byte code at that position
 // relative to other versionstamped key / values inside the transaction.
-export type UnboundStamp = {data: Buffer, stampPos: number, codePos?: number}
+export type UnboundStamp = { data: Buffer, stampPos: number, codePos?: number }
 
 const packedBufLen = (dataLen: number, isKey: boolean): number => {
   const use4ByteOffset = apiVersion.get()! >= 520
-  return dataLen + (use4ByteOffset ? 4 : (isKey ? 2 : 0))
+
+  // eslint-disable-next-line no-nested-ternary
+  return dataLen + (use4ByteOffset ? 4 : isKey ? 2 : 0)
 }
 
 // If preallocated is set, the buffer already has space for the offset at the end.
@@ -24,20 +26,24 @@ const packVersionstampRaw = (data: Buffer, pos: number, isKey: boolean, prealloc
   }
 
   const result = preallocated ? data : Buffer.allocUnsafe(packedBufLen(data.length, isKey))
-  if (!preallocated) data.copy(result)
 
-  if (use4ByteOffset) result.writeUInt32LE(pos, result.length - 4)
-  else if (isKey) result.writeUInt16LE(pos, result.length - 2)
+  if (!preallocated) {
+    data.copy(result)
+  }
+
+  if (use4ByteOffset) {
+    result.writeUInt32LE(pos, result.length - 4)
+  } else if (isKey) {
+    result.writeUInt16LE(pos, result.length - 2)
+  }
 
   return result
 }
 
 // Exported for binding tester. TODO: Consider moving this into its own file and exporting it generally.
-export const packVersionstamp = ({data, stampPos}: UnboundStamp, isKey: boolean): Buffer => (
-  packVersionstampRaw(data, stampPos, isKey, false)
-)
+export const packVersionstamp = ({ data, stampPos }: UnboundStamp, isKey: boolean): Buffer => packVersionstampRaw(data, stampPos, isKey, false)
 
-export const packPrefixedVersionstamp = (prefix: Buffer, {data, stampPos}: UnboundStamp, isKey: boolean): Buffer => {
+export const packPrefixedVersionstamp = (prefix: Buffer, { data, stampPos }: UnboundStamp, isKey: boolean): Buffer => {
   const buf = Buffer.allocUnsafe(packedBufLen(prefix.length + data.length, isKey))
   prefix.copy(buf)
   data.copy(buf, prefix.length)

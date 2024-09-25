@@ -1,5 +1,5 @@
-import {NativeValue} from './native'
-import {Transformer} from './transformer'
+import { NativeValue } from './native'
+import { Transformer } from './transformer'
 
 export interface KeySelector<Key> {
   key: Key,
@@ -8,9 +8,9 @@ export interface KeySelector<Key> {
   _isKeySelector: true
 }
 
-const keySelector = <Key>(key: Key, orEqual: boolean, offset: number): KeySelector<Key> => (
-  {key, orEqual, offset, _isKeySelector: true}
-)
+const keySelector = <Key>(key: Key, orEqual: boolean, offset: number): KeySelector<Key> => ({
+  key, orEqual, offset, _isKeySelector: true
+})
 
 const add = <Key>(sel: KeySelector<Key>, addOffset: number) => keySelector(sel.key, sel.orEqual, sel.offset + addOffset)
 
@@ -28,17 +28,13 @@ const lastLessOrEqual = <Key>(key: Key) => keySelector(key, true, 0)
 const firstGreaterThan = <Key>(key: Key) => keySelector(key, true, 1)
 const firstGreaterOrEqual = <Key>(key: Key) => keySelector(key, false, 1)
 
-const isKeySelector = <Key>(val: any): val is KeySelector<Key> => {
-  return (typeof val === 'object' && val != null && val._isKeySelector)
-}
+const isKeySelector = <Key>(val: any): val is KeySelector<Key> => typeof val === 'object' && val != null && val._isKeySelector
 
 const from = <Key>(valOrKS: Key | KeySelector<Key>): KeySelector<Key> => (
   isKeySelector(valOrKS) ? valOrKS : firstGreaterOrEqual(valOrKS)
 )
 
-const toNative = <Key>(sel: KeySelector<Key>, xf: Transformer<Key, any>): KeySelector<NativeValue> => (
-  keySelector(xf.pack(sel.key), sel.orEqual, sel.offset)
-)
+const toNative = <Key>(sel: KeySelector<Key>, xf: Transformer<Key, any>): KeySelector<NativeValue> => keySelector(xf.pack(sel.key), sel.orEqual, sel.offset)
 
 export default Object.assign(keySelector, {
   add, next, prev, lastLessThan, lastLessOrEqual, firstGreaterThan, firstGreaterOrEqual, isKeySelector, from, toNative
