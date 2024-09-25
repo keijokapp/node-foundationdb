@@ -1,10 +1,10 @@
-import 'mocha'
-import * as fdb from '../lib'
 import * as assert from 'assert'
-import { withEachDb } from './util'
-import {HighContentionAllocator} from '../lib/directory'
-import { emptyBuffer, startsWith } from '../lib/util'
+import { describe, it } from 'mocha'
+import * as fdb from '../lib'
+import { HighContentionAllocator } from '../lib/directory'
 import { defaultTransformer } from '../lib/transformer'
+import { emptyBuffer, startsWith } from '../lib/util'
+import { withEachDb } from './util'
 
 // The binding tester is the actual comprehensive test suite for the directory
 // layer. This mostly exists as a smoke test, and to exercise some of the API
@@ -23,21 +23,23 @@ withEachDb(db => describe('directory layer', () => {
     }
 
     const subspace = db.subspace.at('hca').withKeyEncoding(fdb.encoders.tuple)
-    it('allocates unique values sequentially', async function() {
+    it('allocates unique values sequentially', async function () {
       const NUM = 100
       this.timeout(60000)
 
       const hca = new HighContentionAllocator(subspace)
 
       const keys = new Set<number>()
+
       for (let i = 0; i < NUM; i++) {
         const keyBuf = await db.doTn(txn => hca.allocate(txn))
         addToSet(keyBuf, keys)
       }
+
       assert.strictEqual(keys.size, NUM)
     })
 
-    it('allocates unique values in concurrent transactions', async function() {
+    it('allocates unique values in concurrent transactions', async function () {
       const NUM = 100
       this.timeout(20000)
 
@@ -48,11 +50,12 @@ withEachDb(db => describe('directory layer', () => {
         const keyBuf = await db.doTn(txn => hca.allocate(txn))
         addToSet(keyBuf, keys)
       })())
+
       await Promise.all(work)
       assert.strictEqual(keys.size, NUM)
     })
 
-    it('allocates unique values in big transactions', async function() {
+    it('allocates unique values in big transactions', async function () {
       const NUM_TXNS = 10
       const ALLOC_PER_TXN = 100
       this.timeout(6000000)
@@ -61,14 +64,17 @@ withEachDb(db => describe('directory layer', () => {
 
       const keys = new Set<number>()
       const work = new Array(NUM_TXNS).fill(null).map(() => (async () => {
-        const keyBufs = await db.doTn(async txn => {
+        const keyBufs = await db.doTn(async () => {
           // This is really mean. I'm going to concurrently try to allocate
           // ALLOC_PER_TXN times inside here.
           const innerWork = new Array(ALLOC_PER_TXN).fill(null).map(() => db.doTn(txn => hca.allocate(txn)))
-          return await Promise.all(innerWork)
+
+          return Promise.all(innerWork)
         })
 
-        for (const keyBuf of keyBufs) addToSet(keyBuf, keys)
+        for (const keyBuf of keyBufs) {
+          addToSet(keyBuf, keys)
+        }
       })())
 
       await Promise.all(work)
@@ -80,7 +86,7 @@ withEachDb(db => describe('directory layer', () => {
     // I can actually reuse this directory layer because its stateless.
     const dl = new fdb.DirectoryLayer({
       contentSubspace: db.subspace.at('content'),
-      nodeSubspace: db.subspace.at('\xfe'),
+      nodeSubspace: db.subspace.at('\xfe')
     })
 
     it('can make a directory', async () => {
@@ -151,19 +157,19 @@ withEachDb(db => describe('directory layer', () => {
 
       // Ok, the partition should contain both items. I'm quite uncomfortable
       // about the fact there's no nice way to do this using the current API.
-      const contents = await db.at(part.content.withKeyEncoding(defaultTransformer))
+      await db.at(part.content.withKeyEncoding(defaultTransformer))
         .getRangeAllStartsWith(emptyBuffer)
     })
 
     it('refuses to open a directory with the wrong layer specified', async () => {
-      const dirA = await dl.create(db, 'dir', 'layer a')
+      await dl.create(db, 'dir', 'layer a')
       await dl.open(db, 'dir', 'layer a') // <-- layer matches. should be ok.
       assert.rejects(dl.open(db, 'dir', 'layer b'), 'layer mismatch. Should throw')
       // Actually the other bindings allow this. I'm not sure it *should* be allowed, but there you go.
       // assert.rejects(dl.open(db, 'dir'), 'layer mismatch. Should throw')
     })
 
-    it('can open a directory with high contention', async function() {
+    it('can open a directory with high contention', async () => {
       const NUM = 100
 
       const work = new Array(NUM).fill(null).map(async (_, i) => {
@@ -172,7 +178,7 @@ withEachDb(db => describe('directory layer', () => {
       await Promise.all(work)
     })
 
-    it('inherits the types from the root', async function() {
+    it('inherits the types from the root', async () => {
       const db2 = db.withValueEncoding(fdb.encoders.int32BE)
       const dir = await dl.create(db2, 'a') // This directory's subspace inherits the
       const space = db.at(dir)
