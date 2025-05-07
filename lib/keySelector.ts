@@ -1,12 +1,4 @@
-import { NativeValue } from './native'
-import { Transformer } from './transformer'
-
-export interface KeySelector<Key> {
-  key: Key,
-  orEqual: boolean
-  offset: number
-  _isKeySelector: true
-}
+import type { KeySelector, NativeValue, Transformer } from './types'
 
 const keySelector = <Key>(key: Key, orEqual: boolean, offset: number): KeySelector<Key> => ({
   key, orEqual, offset, _isKeySelector: true

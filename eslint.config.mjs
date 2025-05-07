@@ -14,6 +14,14 @@ export default [
       'stylistic/indent': ['error', 2, { SwitchCase: 1 }],
       'stylistic/lines-between-class-members': 'off',
       'stylistic/max-len': 'off',
+      'stylistic/member-delimiter-style': ['error', {
+        multiline: {
+          delimiter: 'none'
+        },
+        singleline: {
+          delimiter: 'comma'
+        }
+      }],
       'stylistic/semi': ['error', 'never'],
       'default-param-last': 'off',
       'no-dupe-class-members': 'off',

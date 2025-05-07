@@ -1,9 +1,8 @@
 import * as assert from 'assert'
 import { describe, it } from 'mocha'
 import {
-  TupleItem, Watch, encoders, keySelector, tuple
+  Transformer, TupleItem, Watch, encoders, keySelector, tuple
 } from '../lib'
-import { Transformer } from '../lib/transformer'
 import { prefix as testPrefix, withEachDb } from './util'
 
 process.on('unhandledRejection', err => { throw err })

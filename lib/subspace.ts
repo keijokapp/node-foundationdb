@@ -3,14 +3,11 @@
 // it also includes kv transformers, so a subspace here will also automatically
 // encode and decode keys and values.
 
-import {
-  Transformer, prefixTransformer, defaultTransformer, defaultGetRange
-} from './transformer'
-import { NativeValue } from './native'
+import { prefixTransformer, defaultTransformer, defaultGetRange } from './transformer'
+import type { NativeValue, Transformer, UnboundStamp } from './types'
 import {
   asBuf, concat2, emptyBuffer, startsWith, strInc
 } from './util'
-import { UnboundStamp } from './versionstamp.js'
 
 const concatPrefix = (p1: Buffer, p2?: string | Buffer) => (
   // eslint-disable-next-line no-nested-ternary

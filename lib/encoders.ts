@@ -1,6 +1,6 @@
 import type { TupleItem } from 'fdb-tuple'
 import * as tupleEncoder from 'fdb-tuple'
-import type { Transformer } from './transformer'
+import type { Transformer } from './types'
 import { id } from './util'
 
 export const int32LE: Transformer<number, number> = {

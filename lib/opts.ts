@@ -2,11 +2,11 @@ import { DatabaseOptions, NetworkOptions, TransactionOptions } from './opts.g'
 
 export type OptionData = {
   [name: string]: {
-    code: number,
-    description: string,
-    deprecated?: true,
-    type: 'string' | 'int' | 'bytes' | 'none',
-    paramDescription?: string, // only if not 'none'.
+    code: number
+    description: string
+    deprecated?: true
+    type: 'string' | 'int' | 'bytes' | 'none'
+    paramDescription?: string // only if not 'none'.
   }
 }
 
