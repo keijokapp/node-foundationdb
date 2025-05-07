@@ -22,7 +22,7 @@
 import * as assert from 'assert'
 import * as fs from 'fs'
 import * as nodeUtil from 'util'
-import * as chalk from 'chalk'
+import chalk from 'chalk'
 import * as fdb from '../lib'
 import {
   Database,
