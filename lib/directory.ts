@@ -2,11 +2,10 @@ import { TupleItem } from 'fdb-tuple'
 import { inspect } from 'util'
 import Database from './database'
 import { biguint64LE, tuple } from './encoders'
-import { NativeValue } from './native'
 import { TransactionOptionCode } from './opts.g'
 import Subspace, { root } from './subspace'
 import Transaction from './transaction'
-import { Transformer, defaultTransformer } from './transformer'
+import { defaultTransformer } from './transformer'
 import {
   asBuf,
   concat2,
@@ -14,6 +13,7 @@ import {
   startsWith,
   strInc
 } from './util'
+import type { DirectoryLayerOpts, NativeValue, Transformer } from './types'
 
 export class DirectoryError extends Error {
   constructor(description: string) {
@@ -501,20 +501,6 @@ export class Directory<KeyIn = NativeValue, KeyOut = Buffer, ValIn = NativeValue
         : this._directoryLayer
       : this._directoryLayer
   }
-}
-
-interface DirectoryLayerOpts {
-  /** The prefix for directory metadata nodes. Defaults to '\xfe' */
-  nodePrefix?: undefined | string | Buffer
-  // We really actually want a NodeSubspace here, but we'll set the kv encoding
-  // ourselves to make the API simpler.
-  nodeSubspace?: undefined | SubspaceAny
-
-  /** The prefix for content. Defaults to ''. */
-  contentPrefix?: undefined | string | Buffer // Defaults to '', the root.
-  contentSubspace?: undefined | SubspaceAny
-
-  allowManualPrefixes?: undefined | boolean // default false
 }
 
 export class DirectoryLayer {

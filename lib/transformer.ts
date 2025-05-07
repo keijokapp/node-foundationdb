@@ -1,30 +1,10 @@
 // The transformer type is used to transparently translate keys and values
 // through an encoder and decoder function.
 
+import type { Transformer, UnboundStamp } from './types'
 import {
   asBuf, concat2, id, startsWith, strInc
 } from './util'
-import { UnboundStamp } from './versionstamp'
-
-export type Transformer<In, Out> = {
-  name?: undefined | string, // For debugging.
-
-  // The tuple type supports embedding versionstamps, but the versionstamp
-  // isn't known until the transaction has been committed.
-
-  // TODO: I need a name for this fancy structure.
-  pack(val: In): Buffer | string,
-  unpack(buf: Buffer): Out,
-
-  // These are hooks for the tuple type to support unset versionstamps
-  packUnboundVersionstamp?(val: In): UnboundStamp,
-  bakeVersionstamp?(val: In, versionstamp: Buffer, code: Buffer | undefined): void,
-
-  /// Range which includes all "children" of this item, or whatever that means
-  /// for the type. Added primarily to make it easier to get a range with some
-  /// tuple prefix.
-  range?(prefix: In): { begin: Buffer | string, end: Buffer | string },
-}
 
 export const defaultTransformer: Transformer<Buffer | string, Buffer> = {
   pack: id,

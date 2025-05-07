@@ -1,37 +1,22 @@
-import keySelector, { KeySelector } from './keySelector'
-import {
-  NativeTransaction,
+import type {
+  KeySelector,
+  KVList,
   NativeValue,
+  RangeOptions,
+  Transformer,
+  UnboundStamp,
   Version,
-  Watch
+  Watch,
+  WatchOptions
+} from './types'
+import keySelector from './keySelector'
+import {
+  NativeTransaction
 } from './native'
 import { MutationType, StreamingMode, TransactionOptionCode } from './opts.g'
 import Subspace, { GetSubspace } from './subspace'
-import { Transformer } from './transformer'
 import { asBuf, strInc, strNext } from './util'
-import { UnboundStamp, packVersionstamp, packVersionstampPrefixSuffix } from './versionstamp'
-
-export interface RangeOptionsBatch {
-  // defaults to Iterator for batch mode, WantAll for getRangeAll.
-  streamingMode?: undefined | StreamingMode,
-  limit?: undefined | number,
-  reverse?: undefined | boolean,
-}
-
-export interface RangeOptions extends RangeOptionsBatch {
-  targetBytes?: undefined | number,
-}
-
-export type KVList<Key, Value> = {
-  results: [Key, Value][], // [key, value] pair.
-  more: boolean,
-}
-
-export { Watch }
-
-export type WatchOptions = {
-  throwAllErrors?: undefined | boolean
-}
+import { packVersionstamp, packVersionstampPrefixSuffix } from './versionstamp'
 
 const doNothing = () => {}
 

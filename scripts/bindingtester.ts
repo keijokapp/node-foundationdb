@@ -34,12 +34,12 @@ import {
   Subspace,
   Transaction,
   TransactionOptionCode,
+  Transformer,
   TupleItem,
   keySelector,
   tuple,
   util
 } from '../lib'
-import { Transformer } from '../lib/transformer'
 import { concat2, emptyBuffer, startsWith } from '../lib/util'
 import { packPrefixedVersionstamp } from '../lib/versionstamp'
 

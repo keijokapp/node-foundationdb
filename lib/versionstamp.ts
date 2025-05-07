@@ -1,10 +1,6 @@
 import * as apiVersion from './apiVersion'
+import type { UnboundStamp } from './types'
 import { emptyBuffer } from './util'
-
-// Versionstamp that isn't yet bound to an actual version. If codePos is set,
-// the database will also fill in an incrementing 2 byte code at that position
-// relative to other versionstamped key / values inside the transaction.
-export type UnboundStamp = { data: Buffer, stampPos: number, codePos?: number }
 
 const packedBufLen = (dataLen: number, isKey: boolean): number => {
   const use4ByteOffset = apiVersion.get()! >= 520

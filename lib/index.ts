@@ -15,7 +15,7 @@ export { default as Database } from './database'
 export { Directory, DirectoryLayer, DirectoryError } from './directory'
 export * as encoders from './encoders'
 export { tuple } from './encoders'
-export { default as keySelector, KeySelector } from './keySelector'
+export { default as keySelector } from './keySelector'
 export {
   ConflictRangeType,
   DatabaseOptionCode,
@@ -29,8 +29,8 @@ export {
   TransactionOptions
 } from './opts.g'
 export { default as Subspace, root } from './subspace'
-export { default as Transaction, Watch } from './transaction'
-export type { Transformer } from './transformer'
+export { default as Transaction } from './transaction'
+export type * from './types'
 
 let initCalled = false
 

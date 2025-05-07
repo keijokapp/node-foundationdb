@@ -2,21 +2,9 @@ import { platform } from 'os'
 import * as path from 'path'
 import FDBError from './error'
 import { MutationType, StreamingMode } from './opts.g'
-
-export type NativeValue = string | Buffer
-
-export type KVList = {
-  results: [Buffer, Buffer][], // [key, value] pair.
-  more: boolean,
-}
-
-export type Watch = {
-  cancel(): void
-  // Resolves to true if the watch resolved normally. false if the watch it was aborted.
-  promise: Promise<boolean>
-}
-
-export type Version = Buffer
+import type {
+  KVList, NativeValue, Version, Watch
+} from './types'
 
 export interface NativeTransaction {
   setOption(code: number, param: string | number | Buffer | null): void
@@ -42,7 +30,7 @@ export interface NativeTransaction {
     end: NativeValue, endOrEq: boolean, endOffset: number,
     limit: number, target_bytes: number,
     mode: StreamingMode, iter: number, isSnapshot: boolean, reverse: boolean
-  ): Promise<KVList>
+  ): Promise<KVList<Buffer, Buffer>>
 
   clearRange(start: NativeValue, end: NativeValue): void
 

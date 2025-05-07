@@ -1,7 +1,5 @@
 import FDBError from './error'
-import { KeySelector } from './keySelector'
 import * as fdb from './native'
-import { NativeValue } from './native'
 import { eachOption } from './opts'
 import {
   DatabaseOptions,
@@ -11,10 +9,10 @@ import {
   transactionOptionData
 } from './opts.g'
 import Subspace, { root, GetSubspace, isGetSubspace } from './subspace'
-import Transaction, { RangeOptions, Watch } from './transaction'
-import { Transformer } from './transformer'
-
-export type WatchWithValue<Value> = Watch & { value: Value | undefined }
+import Transaction from './transaction'
+import type {
+  KeySelector, NativeValue, RangeOptions, Transformer, Watch, WatchWithValue
+} from './types'
 
 export default class Database<KeyIn = NativeValue, KeyOut = Buffer, ValIn = NativeValue, ValOut = Buffer> {
   _db: fdb.NativeDatabase
