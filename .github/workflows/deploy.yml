@@ -3,11 +3,7 @@ name: deploy
 on:
   release:
     types: [created]
-  workflow_dispatch:
-    inputs:
-      # version:
-      #   description: 'Name of version (ie 5.5.0)'
-      #   required: true
+  workflow_dispatch: {}
 
 jobs:
   prebuild-linux:
@@ -15,8 +11,7 @@ jobs:
 
     steps:
     - uses: actions/checkout@v4
-    - name: Setup nodejs
-      uses: actions/setup-node@v4
+    - uses: actions/setup-node@v4
       with:
         node-version: 24
 
@@ -36,6 +31,7 @@ jobs:
         name: linux-x64
         path: prebuilds/linux-*
         retention-days: 5
+        if-no-files-found: error
 
   prebuild-macos:
     runs-on: macos-latest
@@ -105,9 +101,9 @@ jobs:
   #       name: win32-x64
   #       path: prebuilds/win32-x64
   #       retention-days: 5
+  #       if-no-files-found: error
 
   deploy-npm:
-    # needs: [prebuild-windows, prebuild-macos, prebuild-linux]
     needs: [prebuild-macos, prebuild-linux]
     runs-on: ubuntu-latest
 
@@ -130,11 +126,9 @@ jobs:
 
     - run: ls -R prebuilds
 
-    # Ideally I shouldn't need this...
     - run: wget -nv "https://github.com/apple/foundationdb/releases/download/7.3.63/foundationdb-clients_7.3.63-1_amd64.deb"
     - run: sudo dpkg -i foundationdb-clients_7.3.63-1_amd64.deb
 
-    # And I could just run the linux script last anyway.
     - run: npm ci
     - run: npm publish
       env:
