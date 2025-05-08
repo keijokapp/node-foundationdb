@@ -25,11 +25,11 @@ jobs:
       with:
         node-version: ${{ matrix.node-version }}
 
-    - run: wget "https://github.com/apple/foundationdb/releases/download/7.2.5/foundationdb-clients_7.2.5-1_amd64.deb"
-    - run: sudo dpkg -i foundationdb-clients_7.2.5-1_amd64.deb
+    - run: wget "https://github.com/apple/foundationdb/releases/download/7.3.63/foundationdb-clients_7.3.63-1_amd64.deb"
+    - run: sudo dpkg -i foundationdb-clients_7.3.63-1_amd64.deb
     - run: sudo mkdir -p /var/lib/foundationdb/data
-    - run: wget "https://github.com/apple/foundationdb/releases/download/7.2.5/foundationdb-server_7.2.5-1_amd64.deb"
-    - run: sudo dpkg -i foundationdb-server_7.2.5-1_amd64.deb
+    - run: wget "https://github.com/apple/foundationdb/releases/download/7.3.63/foundationdb-server_7.3.63-1_amd64.deb"
+    - run: sudo dpkg -i foundationdb-server_7.3.63-1_amd64.deb
 
     - run: npm ci
     - run: npm test
