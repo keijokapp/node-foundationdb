@@ -586,7 +586,7 @@ All range read functions and `getKey` let you specify keys using [key selectors]
 For example, to get a range not including the start but including the end:
 
 ```javascript
-import{ keySelector as ks } 'foundationdb';
+import { keySelector as ks } '@arbendium/foundationdb';
 
 // ...
 tn.getRange(
@@ -600,7 +600,7 @@ tn.getRange(
 You can add or subtract an offset from a key selector using `fdb.keySelector.add(sel, offset)`. This counts *in keys*. For example, to find the key thats exactly 10 keys after key `'a'`:
 
 ```javascript
-import{ keySelector as ks } 'foundationdb';
+import { keySelector as ks } '@arbendium/foundationdb';
 
 await db.getKey(ks.add(ks.firstGreaterOrEqual('a'), 10))
 ```
