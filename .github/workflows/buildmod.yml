@@ -18,7 +18,7 @@ jobs:
     - name: Setup nodejs
       uses: actions/setup-node@v4
       with:
-        node-version: 22
+        node-version: 24
 
     - run: wget -nv "https://github.com/apple/foundationdb/releases/download/7.2.5/foundationdb-clients_7.2.5-1_amd64.deb"
     - run: sudo dpkg -i foundationdb-clients_7.2.5-1_amd64.deb
@@ -48,7 +48,7 @@ jobs:
     - name: Setup nodejs
       uses: actions/setup-node@v4
       with:
-        node-version: 22
+        node-version: 24
 
     - run: wget -nv "https://github.com/apple/foundationdb/releases/download/7.2.5/FoundationDB-7.2.5_arm64.pkg"
     - run: sudo installer -pkg FoundationDB-7.2.5_arm64.pkg -target /
@@ -82,7 +82,7 @@ jobs:
   #   - name: Setup nodejs
   #     uses: actions/setup-node@v4
   #     with:
-  #       node-version: 22
+  #       node-version: 24
 
   #   # Bleh - the 7.xx builds are currently missing one of the header files. More detail here:
   #   # https://forums.foundationdb.org/t/fdb-c-types-h-missing-in-windows-install-image/3817
@@ -115,7 +115,7 @@ jobs:
     - uses: actions/checkout@v4
     - uses: actions/setup-node@v4
       with:
-        node-version: 22
+        node-version: 24
         registry-url: 'https://registry.npmjs.org'
 
     - uses: actions/download-artifact@v4
