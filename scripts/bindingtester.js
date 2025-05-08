@@ -570,7 +570,7 @@ const makeMachine = (db, initialName) => {
       // https://github.com/nodejs/node/issues/32697
       const value = buf.readFloatBE(0)
 
-      pushTupleItem(isNaN(value) ? { type: 'float', value, rawEncoding: buf } : { type: 'float', value })
+      pushTupleItem(Number.isNaN(value) ? { type: 'float', value, rawEncoding: buf } : { type: 'float', value })
     },
     async ENCODE_DOUBLE() {
       const buf = await popBuffer()
@@ -580,7 +580,7 @@ const makeMachine = (db, initialName) => {
         console.log('bt encode_double', buf, value, buf.byteOffset)
       }
 
-      pushTupleItem(isNaN(value) ? { type: 'double', value, rawEncoding: buf } : { type: 'double', value })
+      pushTupleItem(Number.isNaN(value) ? { type: 'double', value, rawEncoding: buf } : { type: 'double', value })
     },
     async DECODE_FLOAT() {
       // These are both super gross. Not sure what to do about that.
