@@ -28,7 +28,7 @@
   ],
   "scripts": {
     "install": "node-gyp-build",
-    "lint": "eslint lib scripts test",
+    "lint": "eslint lib scripts test eslint.config.js",
     "prebuild": "prebuildify --napi --strip",
     "prepare": "rm -rf dist/*.js dist/*.ts && tsc -p tsconfig.build.json && cp lib/*.d.ts dist",
     "prepublishOnly": "ls -ld prebuilds/darwin-arm64/@arbendium+foundationdb.node prebuilds/darwin-x64/@arbendium+foundationdb.node prebuilds/linux-x64/@arbendium+foundationdb.node",

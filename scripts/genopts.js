@@ -152,9 +152,9 @@ parseString(xml, (err, result) => {
 
         if (paramDescription != null) {
           line(`    type: '${type}',`)
-          line(`    paramDescription: '${paramDescription.replace(/'/g, '\\\'')}'`)
+          line(`    paramDescription: '${paramDescription.replace(/'/g, '\\\'')}',`)
         } else {
-          line(`    type: '${type}'`)
+          line(`    type: '${type}',`)
         }
 
         line('  },\n')

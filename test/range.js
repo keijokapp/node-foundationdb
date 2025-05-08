@@ -75,7 +75,7 @@ withEachDb(db => describe('key value functionality', () => {
     // This regression requires that we run a naked query without a prefix,
     // which is difficult to do with the current API
     await db.getRoot().doTransaction(async tn => {
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      // eslint-disable-next-line typescript/no-unused-vars
       for await (const _ of tn.getRange('a', 'b')) {
         // intentionally empty
       }

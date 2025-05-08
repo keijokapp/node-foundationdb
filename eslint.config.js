@@ -1,48 +1,72 @@
 import base from '@arbendium/eslint-config-base'
+// eslint-disable-next-line import/no-unresolved
 import tseslint from 'typescript-eslint'
 
 export default [
-  ...tseslint.configs.recommended,
   ...base,
   {
+    languageOptions: {
+      parser: tseslint.parser,
+      sourceType: 'module',
+    },
+    plugins: {
+      typescript: tseslint.plugin,
+    },
     rules: {
-      '@typescript-eslint/ban-ts-comment': ['error', {
-        'ts-check': true, 'ts-expect-error': false, 'ts-ignore': true, 'ts-nocheck': true
-      }],
-      '@typescript-eslint/no-explicit-any': 'off',
-      '@typescript-eslint/no-unused-vars': 'error',
-      '@typescript-eslint/no-use-before-define': ['error', { functions: false, classes: false, variables: false }],
-      'import/no-unresolved': 'off',
+      'default-param-last': 'off',
+      'no-underscore-dangle': 'off',
       'stylistic/indent': ['error', 2, { SwitchCase: 1 }],
       'stylistic/max-len': 'off',
       'stylistic/member-delimiter-style': ['error', {
         multiline: {
-          delimiter: 'none'
+          delimiter: 'none',
         },
         singleline: {
-          delimiter: 'comma'
-        }
+          delimiter: 'comma',
+        },
       }],
       'stylistic/semi': ['error', 'never'],
-      'default-param-last': 'off',
-      'no-dupe-class-members': 'off',
-      'no-restricted-globals': 'off',
-      'no-underscore-dangle': 'off',
+      'typescript/ban-ts-comment': ['error', {
+        'ts-check': true, 'ts-expect-error': false, 'ts-ignore': true, 'ts-nocheck': true,
+      }],
+      'no-array-constructor': 'off',
+      'typescript/no-array-constructor': 'error',
+      'typescript/no-duplicate-enum-values': 'error',
+      'typescript/no-empty-object-type': 'error',
+      'typescript/no-extra-non-null-assertion': 'error',
+      'typescript/no-extraneous-class': 'error',
+      'typescript/no-invalid-void-type': 'error',
+      'typescript/no-misused-new': 'error',
+      'typescript/no-namespace': 'error',
+      'typescript/no-non-null-asserted-nullish-coalescing': 'error',
+      'typescript/no-non-null-asserted-optional-chain': 'error',
+      'typescript/no-non-null-assertion': 'error',
+      'typescript/no-require-imports': 'error',
+      'typescript/no-this-alias': 'error',
+      'typescript/no-unnecessary-type-constraint': 'error',
+      'typescript/no-unsafe-declaration-merging': 'error',
+      'typescript/no-unsafe-function-type': 'error',
+      'no-unused-expressions': 'off',
+      'typescript/no-unused-expressions': 'error',
       'no-unused-vars': 'off',
-      'no-use-before-define': 'off'
-    }
-  },
-  {
-    files: ['lib/opts.g.js'],
-    rules: {
-      'stylistic/comma-dangle': 'off'
-    }
+      'typescript/no-unused-vars': 'error',
+      'no-use-before-define': 'off',
+      'typescript/no-use-before-define': ['error', { functions: false, classes: false, variables: false }],
+      'no-useless-constructor': 'off',
+      'typescript/no-useless-constructor': 'error',
+      'typescript/no-wrapper-object-types': 'error',
+      'typescript/prefer-as-const': 'error',
+      'typescript/prefer-literal-enum-member': 'error',
+      'typescript/prefer-namespace-keyword': 'error',
+      'typescript/triple-slash-reference': 'error',
+      'typescript/unified-signatures': 'error',
+    },
   },
   {
     files: ['eslint.config.js', 'scripts/**', 'test/**'],
     rules: {
       'import/no-extraneous-dependencies': ['error', { devDependencies: true }],
-      'no-console': 'off'
-    }
-  }
+      'no-console': 'off',
+    },
+  },
 ]
