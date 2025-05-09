@@ -1,6 +1,6 @@
 import assert from 'node:assert'
 import { describe, it } from 'mocha'
-import { encoders, keySelector, tuple } from '../lib/index.js'
+import * as fdb from '../lib/index.js'
 import { prefix as testPrefix, withEachDb } from './util.js'
 
 /**
@@ -102,18 +102,18 @@ withEachDb(db => describe('key value functionality', () => {
     const concurrentWrites = 30
     const key = 'num'
 
-    await db.set(key, encoders.int32BE.pack(0))
+    await db.set(key, fdb.encoders.int32BE.pack(0))
 
     let txnAttempts = 0
     await Promise.all(new Array(concurrentWrites).fill(0).map(
       () => db.doTransaction(async tn => {
-        const val = encoders.int32BE.unpack(/** @type {Buffer} */(await tn.get(key)))
-        tn.set(key, encoders.int32BE.pack(val + 1))
+        const val = fdb.encoders.int32BE.unpack(/** @type {Buffer} */(await tn.get(key)))
+        tn.set(key, fdb.encoders.int32BE.pack(val + 1))
         txnAttempts++
       }),
     ))
 
-    const result = encoders.int32BE.unpack(/** @type {Buffer} */(await db.get(key)))
+    const result = fdb.encoders.int32BE.unpack(/** @type {Buffer} */(await db.get(key)))
     assert.strictEqual(result, concurrentWrites)
 
     // This doesn't necessarily mean there's an error, but if there weren't
@@ -139,7 +139,7 @@ withEachDb(db => describe('key value functionality', () => {
 
     for (const jsonStringifyLength of [1023, 1024, 1025]) {
       it(`handles ${jsonStringifyLength} length json`, async () => {
-        await setGetAssertEqual(Array.from({ length: jsonStringifyLength - 2 }, (_, x) => `${x % 10}`).join(''), encoders.json)
+        await setGetAssertEqual(Array.from({ length: jsonStringifyLength - 2 }, (_, x) => `${x % 10}`).join(''), fdb.encoders.json)
       })
     }
   })
@@ -157,7 +157,7 @@ withEachDb(db => describe('key value functionality', () => {
     it('returns the key that matches if a key selector is passed', async () => {
       await db.set('a', 'y')
       await db.set('b', 'y')
-      assert.strictEqual((await db.getKey(keySelector.firstGreaterThan('a')))?.toString(), 'b')
+      assert.strictEqual((await db.getKey(fdb.keySelector.firstGreaterThan('a')))?.toString(), 'b')
     })
 
     it('returns undefined if the key selector matches outside of the subspace range', async () => {
@@ -165,7 +165,7 @@ withEachDb(db => describe('key value functionality', () => {
 
       const _db = db.at('a')
 
-      assert.strictEqual(await _db.getKey(keySelector('', true, 0)), undefined)
+      assert.strictEqual(await _db.getKey(fdb.keySelector('', true, 0)), undefined)
     })
   })
 
@@ -198,7 +198,7 @@ withEachDb(db => describe('key value functionality', () => {
     })
 
     it('handles setVersionstampedValue', async () => {
-      const db_ = db.withValueEncoding(encoders.string)
+      const db_ = db.withValueEncoding(fdb.encoders.string)
       await db_.setVersionstampPrefixedValue('hi there', 'yooo')
 
       const result = await db_.getVersionstampPrefixedValue('hi there')
@@ -210,20 +210,20 @@ withEachDb(db => describe('key value functionality', () => {
     })
 
     it('roundtrips a tuple key', async () => {
-      const db_ = db.withKeyEncoding(tuple)
+      const db_ = db.withKeyEncoding(fdb.encoders.tuple)
       await db_.set([1, 2, 3], 'hi there')
       const result = await db_.get([1, 2, 3])
       assert.strictEqual(/** @type {Buffer} */(result).toString(), 'hi there')
     })
 
     it('commits a tuple with unbound key versionstamps and bakes the vs and code', async () => {
-      const db_ = db.withKeyEncoding(tuple).withValueEncoding(encoders.string)
+      const db_ = db.withKeyEncoding(fdb.encoders.tuple).withValueEncoding(fdb.encoders.string)
       /** @type {TupleItem[]} */
-      const key1 = [1, 2, 3, tuple.unboundVersionstamp()] // should end up with code 0
+      const key1 = [1, 2, 3, fdb.encoders.tuple.unboundVersionstamp()] // should end up with code 0
       /** @type {TupleItem[]} */
-      const key2 = [1, 2, 3, tuple.unboundVersionstamp()] // code 1
+      const key2 = [1, 2, 3, fdb.encoders.tuple.unboundVersionstamp()] // code 1
       /** @type {TupleItem[]} */
-      const key3 = [1, 2, 3, tuple.unboundVersionstamp(321)] // code 321
+      const key3 = [1, 2, 3, fdb.encoders.tuple.unboundVersionstamp(321)] // code 321
 
       const actualStamp = await (await db_.doTn(async tn => {
         tn.setVersionstampedKey(key1, '1')
@@ -252,7 +252,7 @@ withEachDb(db => describe('key value functionality', () => {
     })
 
     it('does not bake the vs in setVersionstampedKey(bakeAfterCommit=false)', async () => {
-      const db_ = db.withKeyEncoding(tuple)
+      const db_ = db.withKeyEncoding(fdb.encoders.tuple)
       /** @type {TupleItem[]} */
       const key = [1, 2, 3, { type: 'unbound versionstamp' }]
       await db_.setVersionstampedKey(key, 'hi', false)
@@ -261,10 +261,10 @@ withEachDb(db => describe('key value functionality', () => {
     })
 
     it('bakes versionstamps in a subspace', async () => {
-      const subspace = db.withValueEncoding(tuple)
+      const subspace = db.withValueEncoding(fdb.encoders.tuple)
 
       const value = await db.doTransaction(async tn => {
-        const value = [tuple.unboundVersionstamp()]
+        const value = [fdb.encoders.tuple.unboundVersionstamp()]
         tn.at(subspace).setVersionstampedValue('some-key', value)
 
         return value
@@ -274,7 +274,7 @@ withEachDb(db => describe('key value functionality', () => {
     })
 
     it('encodes versionstamps in child tuples', async () => {
-      const db_ = db.withKeyEncoding(tuple).withValueEncoding(encoders.string)
+      const db_ = db.withKeyEncoding(fdb.encoders.tuple).withValueEncoding(fdb.encoders.string)
       /** @type {TupleItem[]} */
       const key = [1, [2, { type: 'unbound versionstamp' }]]
 
@@ -294,7 +294,7 @@ withEachDb(db => describe('key value functionality', () => {
     it('resets the code in retried transactions')
 
     it('commits a tuple with unbound value versionstamps and bakes the vs and code', async () => {
-      const db_ = db.withKeyEncoding(encoders.string).withValueEncoding(tuple)
+      const db_ = db.withKeyEncoding(fdb.encoders.string).withValueEncoding(fdb.encoders.tuple)
       /** @type {TupleItem[]} */
       const val1 = [1, 2, 3, { type: 'unbound versionstamp' }, 5] // code 1
       /** @type {TupleItem[]} */

@@ -1,7 +1,6 @@
 import assert from 'node:assert'
 import { describe, it } from 'mocha'
 import { HighContentionAllocator } from '../lib/directory.js'
-import { identity } from '../lib/encoders.js'
 import * as fdb from '../lib/index.js'
 import { emptyBuffer, startsWith } from '../lib/util.js'
 import { withEachDb } from './util.js'
@@ -146,7 +145,7 @@ withEachDb(db => describe('directory layer', () => {
       await dirA.remove(db)
 
       // We should only have 'val b' left in the content.
-      const entries = await db.at(dl._contentSubspace.withKeyEncoding(identity))
+      const entries = await db.at(dl._contentSubspace.withKeyEncoding(fdb.encoders.identity))
         .getRangeAllStartsWith(emptyBuffer)
       assert.strictEqual(entries.length, 1)
       assert.strictEqual(entries[0][1].toString(), 'val b')
@@ -164,7 +163,7 @@ withEachDb(db => describe('directory layer', () => {
 
       // Ok, the partition should contain both items. I'm quite uncomfortable
       // about the fact there's no nice way to do this using the current API.
-      await db.at(part.content.withKeyEncoding(identity))
+      await db.at(part.content.withKeyEncoding(fdb.encoders.identity))
         .getRangeAllStartsWith(emptyBuffer)
     })
 
