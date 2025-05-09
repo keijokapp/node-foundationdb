@@ -4,7 +4,7 @@ import * as fdb from '../lib/index.js'
 import { withEachDb } from './util.js'
 
 withEachDb(db => describe('key value functionality', () => {
-  /** @param {[string | Buffer, string | Buffer][]} batch */
+  /** @param {[Buffer, Buffer][]} batch */
   const batchToStrUnprefix = batch => batch.map(([k, v]) => [k.toString(), v.toString()])
 
   const prefill = async () => {
