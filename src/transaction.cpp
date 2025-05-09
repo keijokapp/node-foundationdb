@@ -59,75 +59,26 @@ MaybeValue newTransaction(napi_env env, FDBTransaction *transaction) {
   return wrap_ok(obj);
 }
 
-// This is a helper struct to move strings out of passed buffers into a format
-// accessible to foundationdb. Objects of this class shouldn't be created
-// directly - they should only be created and destroyed via toStringParams and
-// destroyStringParams.
 typedef struct StringParams {
-  bool owned; // Marks if we're holding memory that needs to be freed.
   uint8_t *str;
   size_t len;
-
-  // This code is mostly straight C code - I'm using these simply to make memory
-  // leaks cause runtime assertions if the struct is used incorrectly. I feel
-  // weird about mixing styles like this though.
-  StringParams(): owned(false) {}
-  ~StringParams() {
-    // The object must be cleaned up manually using destroyStringParams, for
-    // symmetry with toStringParams.
-    assert(owned == false);
-  }
 } StringParams;
-
-// This is a small buffer to avoid thrashing the allocator when reading keys and values.
-// Its a very 95% solution, but it improves performance in the average case.
-// TODO: Many functions make 2 string params objects; not 1. Add a second buffer here.
-static bool buf_in_use = false;
-static uint8_t sp_buf[1024];
 
 // String arguments can either be buffers or strings. If they're strings we
 // need to copy the bytes locally in order to utf8 convert the content.
 static napi_status toStringParams(napi_env env, napi_value value, StringParams *result) {
-  napi_valuetype type;
-  NAPI_OK_OR_RETURN_STATUS(env, napi_typeof(env, value, &type));
-  if (type == napi_string) {
-    // First get the length.
-    NAPI_OK_OR_RETURN_STATUS(env, napi_get_value_string_utf8(env, value, NULL, 0, &result->len));
 
-    // This needs to be strictly less than, because a \0 is appended to the string.
-    // See https://github.com/josephg/node-foundationdb/pull/69 for details.
-    if (!buf_in_use && result->len < sizeof(sp_buf)) {
-      result->owned = false;
-      result->str = sp_buf;
-      NAPI_OK_OR_RETURN_STATUS(env, napi_get_value_string_utf8(env, value, (char *)sp_buf, sizeof(sp_buf), NULL));
-      buf_in_use = true; // After fetch function, so the buffer isn't held if an error happens.
-    } else {
-      result->owned = true;
-      result->str = (uint8_t *)malloc(result->len + 1);
-      NAPI_OK_OR_RETURN_STATUS(env, napi_get_value_string_utf8(env, value, (char *)result->str, result->len + 1, NULL));
-    }
+  bool is_buffer;
+  NAPI_OK_OR_RETURN_STATUS(env, is_bufferish(env, value, &is_buffer));
+
+  if (is_buffer) {
+    NAPI_OK_OR_RETURN_STATUS(env, get_buffer_info(env, value, (void **)&result->str, &result->len));
   } else {
-    result->owned = false;
-
-    bool is_buffer;
-    NAPI_OK_OR_RETURN_STATUS(env, is_bufferish(env, value, &is_buffer));
-
-    if (is_buffer) {
-      NAPI_OK_OR_RETURN_STATUS(env, get_buffer_info(env, value, (void **)&result->str, &result->len));
-    } else {
-      throw_if_not_ok(env, napi_throw_error(env, NULL, "Invalid param - must be string, buffer or arraybuffer"));
-      return napi_pending_exception;
-    }
+    throw_if_not_ok(env, napi_throw_error(env, NULL, "Invalid param - must be string, buffer or arraybuffer"));
+    return napi_pending_exception;
   }
-  return napi_ok;
-}
 
-static void destroyStringParams(StringParams *params) {
-  if (params->owned) {
-    free(params->str);
-    params->owned = false; // Mark stringparams object as safe to delete.
-  } else if (params->str == sp_buf) buf_in_use = false;
-  params->str = NULL;
+  return napi_ok;
 }
 
 
@@ -376,7 +327,7 @@ static napi_value get(napi_env env, napi_callback_info info) {
   TRY_V(napi_get_value_bool(env, args[1], &snapshot));
 
   FDBFuture *f = fdb_transaction_get(tr, key.str, key.len, snapshot);
-  destroyStringParams(&key);
+
   return futureToJS(env, f, getValue).value;
 }
 
@@ -403,7 +354,7 @@ static napi_value getKey(napi_env env, napi_callback_info info) {
   TRY_V(napi_get_value_bool(env, args[3], &snapshot));
 
   FDBFuture *f = fdb_transaction_get_key(tr, key.str, key.len, (fdb_bool_t)selectorOrEqual, selectorOffset, snapshot);
-  destroyStringParams(&key);
+
   return futureToJS(env, f, getKey).value;
 }
 
@@ -419,8 +370,6 @@ static napi_value set(napi_env env, napi_callback_info info) {
   TRY_V(toStringParams(env, args[1], &val));
   fdb_transaction_set(tr, key.str, key.len, val.str, val.len);
 
-  destroyStringParams(&key);
-  destroyStringParams(&val);
   return NULL;
 }
 
@@ -436,7 +385,6 @@ static napi_value clear(napi_env env, napi_callback_info info) {
 
   fdb_transaction_clear(tr, key.str, key.len);
 
-  destroyStringParams(&key);
   return NULL;
 }
 
@@ -456,8 +404,6 @@ static napi_value atomicOp(napi_env env, napi_callback_info info) {
 
   fdb_transaction_atomic_op(tr, key.str, key.len, operand.str, operand.len, (FDBMutationType)operationType);
 
-  destroyStringParams(&key);
-  destroyStringParams(&operand);
   return NULL;
 }
 
@@ -512,9 +458,6 @@ static napi_value getRange(napi_env env, napi_callback_info info) {
     mode, iteration,
     snapshot, reverse);
 
-  destroyStringParams(&start);
-  destroyStringParams(&end);
-
   return futureToJS(env, f, getKeyValueList).value;
 }
 
@@ -530,8 +473,6 @@ static napi_value clearRange(napi_env env, napi_callback_info info) {
   TRY_V(toStringParams(env, args[1], &end));
   fdb_transaction_clear_range(tr, start.str, start.len, end.str, end.len);
 
-  destroyStringParams(&start);
-  destroyStringParams(&end);
   return NULL;
 }
 
@@ -548,8 +489,6 @@ static napi_value getEstimatedRangeSizeBytes(napi_env env, napi_callback_info in
 
   FDBFuture *f = fdb_transaction_get_estimated_range_size_bytes(tr, start.str, start.len, end.str, end.len);
 
-  destroyStringParams(&start);
-  destroyStringParams(&end);
   return futureToJS(env, f, getInt64ToNumber).value;
 }
 
@@ -567,9 +506,6 @@ static napi_value getRangeSplitPoints(napi_env env, napi_callback_info info) {
   TRY_V(napi_get_value_int64(env, args[2], &chunkSize));
 
   FDBFuture *f = fdb_transaction_get_range_split_points(tr, start.str, start.len, end.str, end.len, chunkSize);
-
-  destroyStringParams(&start);
-  destroyStringParams(&end);
 
   return futureToJS(env, f, getKeyList).value;
 }
@@ -608,9 +544,6 @@ static napi_value addConflictRange(napi_env env, napi_callback_info info, FDBCon
   StringParams end;
   TRY_V(toStringParams(env, args[1], &end));
   fdb_error_t errorCode = fdb_transaction_add_conflict_range(tr, start.str, start.len, end.str, end.len, type);
-
-  destroyStringParams(&start);
-  destroyStringParams(&end);
 
   if (errorCode != 0) throw_fdb_error(env, errorCode);
   return NULL;
@@ -686,7 +619,7 @@ static napi_value getAddressesForKey(napi_env env, napi_callback_info info) {
   TRY_V(toStringParams(env, args[0], &key));
 
   FDBFuture *f = fdb_transaction_get_addresses_for_key(tr, key.str, key.len);
-  destroyStringParams(&key);
+
   return futureToJS(env, f, getStringArray).value;
 }
 
