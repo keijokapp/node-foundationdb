@@ -227,13 +227,6 @@ const makeMachine = (db, initialName) => {
     }
   }
 
-  /**
-   * @param {Buffer} buf
-   * @param {Buffer} prefix
-   * @returns {boolean}
-   */
-  const bufBeginsWith = (buf, prefix) => prefix.length <= buf.length && buf.compare(prefix, 0, prefix.length, 0, prefix.length) === 0
-
   // Directory helpers
   /** @returns {Directory} */
   const getCurrentDirectory = () => {
@@ -372,7 +365,7 @@ const makeMachine = (db, initialName) => {
         return result
       }
 
-      if (bufBeginsWith(result, prefix)) {
+      if (startsWith(result, prefix)) {
         // result starts with prefix.
         pushValue(result)
       } else if (result.compare(prefix) < 0) {
@@ -415,7 +408,7 @@ const makeMachine = (db, initialName) => {
       const prefix = await popBuffer()
 
       const results = (await oper.getRangeAll(beginSel, endSel, { streamingMode, limit, reverse }))
-        .filter(([k]) => bufBeginsWith(k, prefix))
+        .filter(([k]) => startsWith(k, prefix))
 
       pushValue(tuple.pack(Array.prototype.concat.apply([], results)))
     },
@@ -612,7 +605,7 @@ const makeMachine = (db, initialName) => {
       await db.doTransaction(async tn => {
         const nextKey = await tn.getKey(keySelector.firstGreaterOrEqual(prefix))
 
-        if (nextKey && bufBeginsWith(nextKey, prefix)) {
+        if (nextKey && startsWith(nextKey, prefix)) {
           throw new FDBError('wait_empty', 1020)
         }
       }).catch(catchFdbErr)
