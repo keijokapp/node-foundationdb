@@ -3,13 +3,13 @@ import type Subspace from './subspace.js'
 
 export interface DirectoryLayerOpts {
   /** The prefix for directory metadata nodes. Defaults to '\xfe' */
-  nodePrefix?: undefined | string | Buffer
+  nodePrefix?: undefined | NativeValue
   // We really actually want a NodeSubspace here, but we'll set the kv encoding
   // ourselves to make the API simpler.
   nodeSubspace?: undefined | Subspace<any, any, any, any>
 
   /** The prefix for content. Defaults to ''. */
-  contentPrefix?: undefined | string | Buffer // Defaults to '', the root.
+  contentPrefix?: undefined | NativeValue // Defaults to '', the root.
   contentSubspace?: undefined | Subspace<any, any, any, any>
 
   allowManualPrefixes?: undefined | boolean // default false
@@ -47,7 +47,7 @@ export type Transformer<In, Out> = {
   // isn't known until the transaction has been committed.
 
   // TODO: I need a name for this fancy structure.
-  pack(val: In): Buffer | string
+  pack(val: In): NativeValue
   unpack(buf: Buffer): Out
 
   // These are hooks for the tuple type to support unset versionstamps
@@ -57,7 +57,7 @@ export type Transformer<In, Out> = {
   /// Range which includes all "children" of this item, or whatever that means
   /// for the type. Added primarily to make it easier to get a range with some
   /// tuple prefix.
-  range?(prefix: In): { begin: Buffer | string, end: Buffer | string }
+  range?(prefix: In): { begin: NativeValue, end: NativeValue }
 }
 
 // Versionstamp that isn't yet bound to an actual version. If codePos is set,

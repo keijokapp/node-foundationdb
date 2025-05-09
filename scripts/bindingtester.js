@@ -85,6 +85,7 @@ const makeMachine = (db, initialName) => {
   const stack = []
   let tnName = initialName
   let instrId = 0
+  /** @type {import('../lib/types.js').Version} */
   let lastVersion = Buffer.alloc(8) // null / empty last version.
 
   const threadColor = /** @type {ChalkInstance} */(colors.pop())
@@ -226,6 +227,7 @@ const makeMachine = (db, initialName) => {
   }
 
   /**
+   * TODO
    * @param {Buffer} buf
    * @param {Buffer} prefix
    * @returns {boolean}
@@ -297,6 +299,7 @@ const makeMachine = (db, initialName) => {
       if (typeof a === 'string') {
         pushValue(a + b)
       } else {
+        // TODO
         pushValue(Buffer.concat([a, /** @type {Buffer} */(b)]))
       }
     },

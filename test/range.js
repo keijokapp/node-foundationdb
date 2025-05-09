@@ -3,8 +3,12 @@ import { beforeEach, describe, it } from 'mocha'
 import * as fdb from '../lib/index.js'
 import { withEachDb } from './util.js'
 
+/**
+ * @import { NativeValue } from '../lib'
+ */
+
 withEachDb(db => describe('key value functionality', () => {
-  /** @param {[string | Buffer, string | Buffer][]} batch */
+  /** @param {[NativeValue, NativeValue][]} batch */
   const batchToStrUnprefix = batch => batch.map(([k, v]) => [k.toString(), v.toString()])
 
   const prefill = async () => {
