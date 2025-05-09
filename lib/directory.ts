@@ -442,7 +442,7 @@ export class Directory<KeyIn = NativeValue, KeyOut = Buffer, ValIn = NativeValue
   }
 
   moveTo(txnOrDb: TxnAny | DbAny, _newAbsolutePath: PathIn) {
-    const directoryLayer = this.getLayerForPath([])
+    const directoryLayer = this._getLayerForPath([])
     const newAbsolutePath = normalizePath(_newAbsolutePath)
     const partitionLength = directoryLayer._path.length
     const partitionPath = newAbsolutePath.slice(0, partitionLength)
@@ -455,19 +455,19 @@ export class Directory<KeyIn = NativeValue, KeyOut = Buffer, ValIn = NativeValue
   }
 
   remove(txnOrDb: TxnAny | DbAny, path?: PathIn) {
-    const layer = this.getLayerForPath(path)
+    const layer = this._getLayerForPath(path)
 
     return layer.remove(txnOrDb, this._partitionSubpath(path, layer))
   }
 
   async removeIfExists(txnOrDb: TxnAny | DbAny, path?: PathIn) {
-    const layer = this.getLayerForPath(path)
+    const layer = this._getLayerForPath(path)
 
     return layer.removeIfExists(txnOrDb, this._partitionSubpath(path, layer))
   }
 
   exists(txnOrDb: TxnAny | DbAny, path?: PathIn): Promise<boolean> {
-    const layer = this.getLayerForPath(path)
+    const layer = this._getLayerForPath(path)
 
     return layer.exists(txnOrDb, this._partitionSubpath(path, layer))
   }
@@ -489,11 +489,11 @@ export class Directory<KeyIn = NativeValue, KeyOut = Buffer, ValIn = NativeValue
     return this._parentDirectoryLayer != null
   }
 
-  private _partitionSubpath(path: PathIn, directoryLayer: DirectoryLayer = this._directoryLayer) {
+  _partitionSubpath(path: PathIn, directoryLayer: DirectoryLayer = this._directoryLayer) {
     return this._path.slice(directoryLayer._path.length).concat(normalizePath(path))
   }
 
-  private getLayerForPath(path: PathIn): DirectoryLayer {
+  _getLayerForPath(path: PathIn): DirectoryLayer {
     // eslint-disable-next-line no-nested-ternary
     return this.isPartition()
       ? normalizePath(path).length === 0
@@ -554,7 +554,7 @@ export class DirectoryLayer {
     return this._createOrOpenInternal(txnOrDb, path, layer)
   }
 
-  private async _createOrOpenInternal<KeyIn, KeyOut, ValIn, ValOut>(txnOrDb: TxnAny | DbAny, _path: PathIn, layer: NativeValue = emptyBuffer, reqPrefix?: Buffer, allowCreate: boolean = true, allowOpen: boolean = true): Promise<Directory<KeyIn, KeyOut, ValIn, ValOut>> {
+  async _createOrOpenInternal<KeyIn, KeyOut, ValIn, ValOut>(txnOrDb: TxnAny | DbAny, _path: PathIn, layer: NativeValue = emptyBuffer, reqPrefix?: Buffer, allowCreate: boolean = true, allowOpen: boolean = true): Promise<Directory<KeyIn, KeyOut, ValIn, ValOut>> {
     const path = normalizePath(_path)
     // For layers, an empty string is treated the same as a missing layer property.
     const layerBuf = asBuf(layer)
@@ -575,7 +575,7 @@ export class DirectoryLayer {
     return doTxn(txnOrDb, async txn => {
       await this._checkVersion(txn, false)
 
-      const existingNode = await this.findWithMeta(txn, path)
+      const existingNode = await this._findWithMeta(txn, path)
 
       if (existingNode.exists()) {
         // The directory exists. Open it!
@@ -706,9 +706,9 @@ export class DirectoryLayer {
         throw new DirectoryError('The destination directory cannot be a subdirectory of the source directory.')
       }
 
-      const oldNode = await this.findWithMeta(txn, oldPath)
+      const oldNode = await this._findWithMeta(txn, oldPath)
 
-      const newNode = await this.findWithMeta(txn, newPath)
+      const newNode = await this._findWithMeta(txn, newPath)
 
       if (!oldNode.exists()) {
         throw new DirectoryError('The source directory does not exist.')
@@ -728,14 +728,14 @@ export class DirectoryLayer {
         throw new DirectoryError('The destination directory already exists. Remove it first.')
       }
 
-      const parentNode = await this.find(txn, newPath.slice(0, -1))
+      const parentNode = await this._find(txn, newPath.slice(0, -1))
 
       if (!parentNode.exists()) {
         throw new DirectoryError('The parent of the destination directory does not exist. Create it first.')
       }
 
       // Ok actually move.
-      const oldPrefix = this.getPrefixForNode(oldNode.subspace!)
+      const oldPrefix = this._getPrefixForNode(oldNode.subspace!)
       txn.at(parentNode.subspace!).set([SUBDIRS_KEY, newPath[newPath.length - 1]], oldPrefix)
       await this._removeFromParent(txn, oldPath)
 
@@ -769,7 +769,7 @@ export class DirectoryLayer {
     return this._removeInternal(txnOrDb, path, false)
   }
 
-  private _removeInternal(txnOrDb: TxnAny | DbAny, _path: PathIn, failOnNonexistent: boolean): Promise<boolean> {
+  _removeInternal(txnOrDb: TxnAny | DbAny, _path: PathIn, failOnNonexistent: boolean): Promise<boolean> {
     const path = normalizePath(_path)
 
     return doTxn(txnOrDb, async txn => {
@@ -779,7 +779,7 @@ export class DirectoryLayer {
         throw new DirectoryError('The root directory cannot be removed.')
       }
 
-      const node = await this.findWithMeta(txn, path)
+      const node = await this._findWithMeta(txn, path)
 
       if (!node.exists()) {
         if (failOnNonexistent) {
@@ -810,7 +810,7 @@ export class DirectoryLayer {
     await this._checkVersion(txn, false)
 
     const path = normalizePath(_path)
-    const node = await this.findWithMeta(txn, path)
+    const node = await this._findWithMeta(txn, path)
 
     if (!node.exists()) {
       throw new DirectoryError('The directory does not exist.')
@@ -850,7 +850,7 @@ export class DirectoryLayer {
       await this._checkVersion(txn, false)
 
       const path = normalizePath(_path)
-      const node = await this.findWithMeta(txn, path)
+      const node = await this._findWithMeta(txn, path)
 
       if (!node.exists()) {
         return false
@@ -864,7 +864,7 @@ export class DirectoryLayer {
     })
   }
 
-  private async _nodeContainingKey(txn: TxnAny, key: Buffer) {
+  async _nodeContainingKey(txn: TxnAny, key: Buffer) {
     // This is a straight port of the equivalent function in the ruby / python
     // bindings.
 
@@ -888,26 +888,26 @@ export class DirectoryLayer {
     }
   }
 
-  private _nodeWithPrefix(prefix: Buffer): NodeSubspace {
+  _nodeWithPrefix(prefix: Buffer): NodeSubspace {
     return this._nodeSubspace.at(prefix)
   }
 
-  private getPrefixForNode(node: NodeSubspace) {
+  _getPrefixForNode(node: NodeSubspace) {
     // This is some black magic. We have a reference to the node's subspace, but
     // what we really want is the prefix. So we want to do the inverse to
     // this._nodeSubspace.at(...).
     return this._nodeSubspace._bakedKeyXf.unpack(node.prefix)[0] as Buffer
   }
 
-  private contentSubspaceForNodeWithXF<KeyIn, KeyOut, ValIn, ValOut>(node: NodeSubspace, keyXf: Transformer<KeyIn, KeyOut>, valueXf: Transformer<ValIn, ValOut>) {
-    return new Subspace(this.getPrefixForNode(node), keyXf, valueXf)
+  _contentSubspaceForNodeWithXF<KeyIn, KeyOut, ValIn, ValOut>(node: NodeSubspace, keyXf: Transformer<KeyIn, KeyOut>, valueXf: Transformer<ValIn, ValOut>) {
+    return new Subspace(this._getPrefixForNode(node), keyXf, valueXf)
   }
 
-  private contentSubspaceForNode(node: NodeSubspace) {
-    return this.contentSubspaceForNodeWithXF(node, defaultTransformer, defaultTransformer)
+  _contentSubspaceForNode(node: NodeSubspace) {
+    return this._contentSubspaceForNodeWithXF(node, defaultTransformer, defaultTransformer)
   }
 
-  private async find(txn: TxnAny, path: Path) {
+  async _find(txn: TxnAny, path: Path) {
     let node = new Node(this._rootNode, [], path)
 
     for (let i = 0; i < path.length; i++) {
@@ -926,8 +926,8 @@ export class DirectoryLayer {
     return node
   }
 
-  private async findWithMeta(txn: TxnAny, targetPath: Path) {
-    const node = await this.find(txn, targetPath)
+  async _findWithMeta(txn: TxnAny, targetPath: Path) {
+    const node = await this._find(txn, targetPath)
     await node.prefetchMetadata(txn)
 
     return node
@@ -937,7 +937,7 @@ export class DirectoryLayer {
     // This is some black magic. We have a reference to the node's subspace, but
     // what we really want is the prefix. So we want to do the inverse to
     // this._nodeSubspace.at(...).
-    const contentSubspace = this.contentSubspaceForNodeWithXF(nodeSubspace, keyXf, valueXf)
+    const contentSubspace = this._contentSubspaceForNodeWithXF(nodeSubspace, keyXf, valueXf)
 
     const layerBuf = asBuf(layer)
 
@@ -949,7 +949,7 @@ export class DirectoryLayer {
     return new Directory(this, this._path.concat(path), contentSubspace, false, layerBuf)
   }
 
-  private async _checkVersion(_tn: TxnAny, writeAccess: boolean) {
+  async _checkVersion(_tn: TxnAny, writeAccess: boolean) {
     const tn = _tn.at(this._rootNode)
     const actualRaw = await tn.get(VERSION_KEY)
 
@@ -969,30 +969,30 @@ export class DirectoryLayer {
     }
   }
 
-  private async* _subdirNamesAndNodes(txn: TxnAny, node: NodeSubspace) {
+  async* _subdirNamesAndNodes(txn: TxnAny, node: NodeSubspace) {
     for await (const [key, prefix] of txn.at(node).getRangeStartsWith(SUBDIRS_KEY)) {
       yield [key[1], this._nodeWithPrefix(prefix)] as [Buffer, NodeSubspace]
     }
   }
 
-  private async _removeFromParent(txn: TxnAny, path: Path) {
-    const parent = await this.find(txn, path.slice(0, -1))
+  async _removeFromParent(txn: TxnAny, path: Path) {
+    const parent = await this._find(txn, path.slice(0, -1))
     txn.at(parent.subspace!).clear([SUBDIRS_KEY, path[path.length - 1]])
   }
 
-  private async _removeRecursive(txn: TxnAny, node: NodeSubspace) {
+  async _removeRecursive(txn: TxnAny, node: NodeSubspace) {
     for await (const [, subnode] of this._subdirNamesAndNodes(txn, node)) {
       await this._removeRecursive(txn, subnode)
     }
 
     // Clear content
-    txn.at(this.contentSubspaceForNode(node)).clearRangeStartsWith(emptyBuffer)
+    txn.at(this._contentSubspaceForNode(node)).clearRangeStartsWith(emptyBuffer)
 
     // Clear metadata
     txn.at(node).clearRangeStartsWith(undefined)
   }
 
-  private async _isPrefixFree(txn: TxnAny, prefix: Buffer) {
+  async _isPrefixFree(txn: TxnAny, prefix: Buffer) {
     // Returns true if the given prefix does not "intersect" any currently
     // allocated prefix (including the root node). This means that it neither
     // contains any other prefix nor is contained by any other prefix.

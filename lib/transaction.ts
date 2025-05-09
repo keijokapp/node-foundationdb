@@ -76,19 +76,17 @@ interface TxnCtx {
  * apply a value transformer this will change.
  */
 export default class Transaction<KeyIn = NativeValue, KeyOut = Buffer, ValIn = NativeValue, ValOut = Buffer> {
-  /** @internal */ private _tn: NativeTransaction
+  _tn: NativeTransaction
 
   isSnapshot: boolean
 
   subspace: Subspace<KeyIn, KeyOut, ValIn, ValOut>
 
-  private _ctx: TxnCtx
+  _ctx: TxnCtx
 
   /**
    * NOTE: Do not call this directly. Instead transactions should be created
    * via db.doTn(...)
-   *
-   * @internal
    */
   constructor(
     tn: NativeTransaction,
@@ -110,19 +108,16 @@ export default class Transaction<KeyIn = NativeValue, KeyOut = Buffer, ValIn = N
     return this._ctx
   }
 
-  /** @internal */
   _assertValid() {
     if (this._ctx.invalid) {
       throw new Error('Transaction is invalid')
     }
   }
 
-  /** @internal */
   _invalidate() {
     this._ctx.invalid = true
   }
 
-  /** @internal */
   async _exec<T>(body: (tn: Transaction<KeyIn, KeyOut, ValIn, ValOut>) => Promise<T>): Promise<T> {
     const result = await body(this)
 
@@ -279,7 +274,7 @@ export default class Transaction<KeyIn = NativeValue, KeyOut = Buffer, ValIn = N
   }
 
   // This just destructively edits the result in-place.
-  private _encodeRangeResult(r: [Buffer, Buffer][]): [KeyOut, ValOut][] {
+  _encodeRangeResult(r: [Buffer, Buffer][]): [KeyOut, ValOut][] {
     // This is slightly faster but I have to throw away the TS checks in the process. :/
     for (let i = 0; i < r.length; i++) {
       (r as any)[i][0] = this.subspace.unpackKey(r[i][0]);
@@ -758,7 +753,7 @@ export default class Transaction<KeyIn = NativeValue, KeyOut = Buffer, ValIn = N
 
   getNextTransactionID() { return this._ctx.nextCode++ }
 
-  private _bakeCode(into: UnboundStamp) {
+  _bakeCode(into: UnboundStamp) {
     if (this.isSnapshot) {
       throw new Error('Cannot use this method in a snapshot transaction')
     }
@@ -788,7 +783,7 @@ export default class Transaction<KeyIn = NativeValue, KeyOut = Buffer, ValIn = N
     this.atomicOpNative(MutationType.SetVersionstampedKey, key, this.subspace.packValue(value))
   }
 
-  private _addBakeItem<T>(item: T, transformer: Transformer<T, any>, code?: Buffer) {
+  _addBakeItem<T>(item: T, transformer: Transformer<T, any>, code?: Buffer) {
     if (transformer.bakeVersionstamp) {
       const scope = this._ctx
 
