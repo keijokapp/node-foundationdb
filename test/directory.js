@@ -26,7 +26,7 @@ withEachDb(db => describe('directory layer', () => {
       set.add(key)
     }
 
-    const subspace = db.subspace.at('hca').withKeyEncoding(fdb.encoders.tuple)
+    const subspace = db.subspace.at('hca', fdb.encoders.tuple)
     it('allocates unique values sequentially', async function () {
       const NUM = 100
       this.timeout(60000)

@@ -631,7 +631,7 @@ const makeMachine = (db, initialName) => {
         console.log('path', path, 'rawprefix', rawPrefix)
       }
 
-      const subspace = new Subspace(rawPrefix).withKeyEncoding(tupleStrict).at(path)
+      const subspace = new Subspace(rawPrefix, tupleStrict).at(path)
 
       dirList.push(subspace)
     },
@@ -799,10 +799,7 @@ const makeMachine = (db, initialName) => {
       const dir = await getCurrentDirectoryOrLayer()
 
       const prefix = await popBuffer()
-      const logSubspace = new Subspace(prefix)
-        .withKeyEncoding(tupleStrict)
-        .withValueEncoding(tupleStrict)
-        .at(dirIdx)
+      const logSubspace = new Subspace(prefix, tupleStrict, tupleStrict).at(dirIdx)
 
       const exists = await dir.exists(oper)
 
