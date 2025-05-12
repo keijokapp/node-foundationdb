@@ -1,5 +1,16 @@
 # HEAD
 
+- Updated supported Node versions to 20-24.
+- Updated supported FoundationDB API version to 730.
+- Exposed more types via the main module.
+- Migrated to ESM. CommonJS modules are no longer published.
+- Fixed `getAddressesForKey` return type.
+- Added `identity` encoder which is used as the default.
+- Made `Subspace#atRaw` consistent with other subspacing methods.
+- Improved directory layer's high contention allocator performance.
+- Fixed a directory layer prefix allocation bug.
+- Made `biguintLE` encoders work with empty buffers.
+
 # 0.1.0
 
 - Forked the library as `@arbendium/foundationdb`.
