@@ -43,47 +43,43 @@ withEachDb(db => describe('directory layer', () => {
       assert.strictEqual(keys.size, NUM)
     })
 
-    it('allocates unique values in concurrent transactions', async function () {
+    it('allocates unique values in concurrent transactions', async () => {
       const NUM = 100
-      this.timeout(20000)
 
       const hca = new HighContentionAllocator(subspace)
 
       /** @type {Set<number>} */
       const keys = new Set()
-      const work = new Array(NUM).fill(null).map(() => (async () => {
+
+      await Promise.all(Array.from({ length: NUM }, async () => {
         const keyBuf = await db.doTn(txn => hca.allocate(txn))
         addToSet(keyBuf, keys)
-      })())
+      }))
 
-      await Promise.all(work)
       assert.strictEqual(keys.size, NUM)
     })
 
     it('allocates unique values in big transactions', async function () {
-      const NUM_TXNS = 10
+      const NUM_TXNS = 100
       const ALLOC_PER_TXN = 100
-      this.timeout(6000000)
+      this.timeout(60000)
 
       const hca = new HighContentionAllocator(subspace)
 
       /** @type {Set<number>} */
       const keys = new Set()
-      const work = new Array(NUM_TXNS).fill(null).map(() => (async () => {
-        const keyBufs = await db.doTn(async () => {
-          // This is really mean. I'm going to concurrently try to allocate
-          // ALLOC_PER_TXN times inside here.
-          const innerWork = new Array(ALLOC_PER_TXN).fill(null).map(() => db.doTn(txn => hca.allocate(txn)))
 
-          return Promise.all(innerWork)
-        })
+      await Promise.all(Array.from({ length: NUM_TXNS }, async () => {
+        const keyBufs = await db.doTn(() => Promise.all(Array.from(
+          { length: ALLOC_PER_TXN },
+          () => db.doTn(txn => hca.allocate(txn)),
+        )))
 
         for (const keyBuf of keyBufs) {
           addToSet(keyBuf, keys)
         }
-      })())
+      }))
 
-      await Promise.all(work)
       assert.strictEqual(keys.size, NUM_TXNS * ALLOC_PER_TXN)
     })
   })
