@@ -1,4 +1,4 @@
-import * as assert from 'assert'
+import assert from 'assert'
 import { beforeEach, describe, it } from 'mocha'
 import * as fdb from '../lib'
 import { withEachDb } from './util'
@@ -89,7 +89,7 @@ withEachDb(db => describe('key value functionality', () => {
 
     assert.deepStrictEqual(
       await _db.getRangeAllStartsWith(['a']),
-      [[['a', 'b'], Buffer.from('yes')]]
+      [[['a', 'b'], Buffer.from('yes')]],
     )
   })
 
@@ -139,8 +139,8 @@ withEachDb(db => describe('key value functionality', () => {
       const result = batchToStrUnprefix(
         await db.getRangeAll(
           fdb.keySelector.firstGreaterOrEqual('a'),
-          fdb.keySelector.firstGreaterOrEqual('c')
-        )
+          fdb.keySelector.firstGreaterOrEqual('c'),
+        ),
       )
 
       assert.deepEqual(result, data.slice(0, 2)) // 'a', 'b'.
@@ -150,8 +150,8 @@ withEachDb(db => describe('key value functionality', () => {
       const result = batchToStrUnprefix(
         await db.getRangeAll(
           fdb.keySelector.firstGreaterThan('a'),
-          fdb.keySelector.firstGreaterThan('c')
-        )
+          fdb.keySelector.firstGreaterThan('c'),
+        ),
       )
 
       assert.deepEqual(result, data.slice(1)) // 'b', 'c'.

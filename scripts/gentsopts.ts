@@ -35,14 +35,14 @@ const readOptions = (data: any[]) => data.map(({ $: opt }: { $: any }) => ({
   description: opt.description as string | undefined,
   paramDescription: opt.paramDescription as string | undefined,
   type: (opt.paramType ? opt.paramType.toLowerCase() : 'none') as OptionType,
-  deprecated: opt.description && opt.description.toLowerCase() === 'deprecated'
+  deprecated: opt.description && opt.description.toLowerCase() === 'deprecated',
 }))
 
 const typeToTs = (type: 'string' | 'int' | 'bytes' | 'none') => ({
   string: 'string',
   int: 'number',
   bytes: 'Buffer',
-  none: 'true'
+  none: 'true',
 }[type])
 
 parseString(xml, (err, result) => {
@@ -64,7 +64,7 @@ parseString(xml, (err, result) => {
 
       line(`export type ${name}s = {`)
       options.forEach(({
-        name, type, paramDescription, deprecated
+        name, type, paramDescription, deprecated,
       }) => {
         output.write(`  ${name}?: undefined | ${typeToTs(type)}`)
 
@@ -85,7 +85,7 @@ parseString(xml, (err, result) => {
 
     line(`export enum ${enumName} {`)
     options.forEach(({
-      name, code, description, deprecated
+      name, code, description, deprecated,
     }) => {
       if (deprecated) {
         line('  // DEPRECATED')
@@ -110,7 +110,7 @@ parseString(xml, (err, result) => {
       line('')
       line(`export const ${toLowerFirst(name)}Data: OptionData = {`)
       options.forEach(({
-        name, code, description, paramDescription, type, deprecated
+        name, code, description, paramDescription, type, deprecated,
       }, i) => {
         line(`  ${name}: {`)
         line(`    code: ${code},`)

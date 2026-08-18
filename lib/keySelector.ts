@@ -1,7 +1,7 @@
 import type { KeySelector, NativeValue, Transformer } from './types'
 
 const keySelector = <Key>(key: Key, orEqual: boolean, offset: number): KeySelector<Key> => ({
-  key, orEqual, offset, _isKeySelector: true
+  key, orEqual, offset, _isKeySelector: true,
 })
 
 const add = <Key>(sel: KeySelector<Key>, addOffset: number) => keySelector(sel.key, sel.orEqual, sel.offset + addOffset)
@@ -29,5 +29,5 @@ const from = <Key>(valOrKS: Key | KeySelector<Key>): KeySelector<Key> => (
 const toNative = <Key>(sel: KeySelector<Key>, xf: Transformer<Key, any>): KeySelector<NativeValue> => keySelector(xf.pack(sel.key), sel.orEqual, sel.offset)
 
 export default Object.assign(keySelector, {
-  add, next, prev, lastLessThan, lastLessOrEqual, firstGreaterThan, firstGreaterOrEqual, isKeySelector, from, toNative
+  add, next, prev, lastLessThan, lastLessOrEqual, firstGreaterThan, firstGreaterOrEqual, isKeySelector, from, toNative,
 })

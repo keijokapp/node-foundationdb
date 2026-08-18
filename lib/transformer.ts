@@ -3,17 +3,17 @@
 
 import type { Transformer, UnboundStamp } from './types'
 import {
-  asBuf, concat2, id, startsWith, strInc
+  asBuf, concat2, id, startsWith, strInc,
 } from './util'
 
 export const defaultTransformer: Transformer<Buffer | string, Buffer> = {
   pack: id,
-  unpack: id
+  unpack: id,
 }
 
 export const defaultGetRange = <KeyIn, KeyOut>(prefix: KeyIn, keyXf: Transformer<KeyIn, KeyOut>): { begin: Buffer | string, end: Buffer | string } => ({
   begin: keyXf.pack(prefix),
-  end: strInc(keyXf.pack(prefix))
+  end: strInc(keyXf.pack(prefix)),
 })
 
 export const prefixTransformer = <In, Out>(prefix: Buffer, inner: Transformer<In, Out>): Transformer<In, Out> => {
@@ -32,7 +32,7 @@ export const prefixTransformer = <In, Out>(prefix: Buffer, inner: Transformer<In
       }
 
       return inner.unpack(buf.subarray(prefix.length))
-    }
+    },
   }
 
   if (inner.packUnboundVersionstamp) {
@@ -41,7 +41,7 @@ export const prefixTransformer = <In, Out>(prefix: Buffer, inner: Transformer<In
 
       const unboundStamp: UnboundStamp = {
         data: concat2(prefix, innerVal.data),
-        stampPos: prefix.length + innerVal.stampPos
+        stampPos: prefix.length + innerVal.stampPos,
       }
 
       if (innerVal.codePos != null) {
@@ -62,7 +62,7 @@ export const prefixTransformer = <In, Out>(prefix: Buffer, inner: Transformer<In
 
       return {
         begin: concat2(prefix, asBuf(innerRange.begin)),
-        end: concat2(prefix, asBuf(innerRange.end))
+        end: concat2(prefix, asBuf(innerRange.end)),
       }
     }
   }

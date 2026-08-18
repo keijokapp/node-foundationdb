@@ -3,7 +3,7 @@ import * as path from 'path'
 import FDBError from './error'
 import { MutationType, StreamingMode } from './opts.g'
 import type {
-  KVList, NativeValue, Version, Watch
+  KVList, NativeValue, Version, Watch,
 } from './types'
 
 export interface NativeTransaction {
@@ -60,7 +60,7 @@ export interface NativeDatabase {
 export enum ErrorPredicate {
   Retryable = 50000,
   MaybeCommitted = 50001,
-  RetryableNotCommitted = 50002
+  RetryableNotCommitted = 50002,
 }
 
 export interface NativeModule {

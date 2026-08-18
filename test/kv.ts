@@ -1,7 +1,7 @@
-import * as assert from 'assert'
+import assert from 'assert'
 import { describe, it } from 'mocha'
 import {
-  Transformer, TupleItem, Watch, encoders, keySelector, tuple
+  Transformer, TupleItem, Watch, encoders, keySelector, tuple,
 } from '../lib'
 import { prefix as testPrefix, withEachDb } from './util'
 
@@ -15,7 +15,7 @@ const codeBuf = (code: number) => {
 }
 
 const bakeVersionstamp = (vs: Buffer, code: number): TupleItem => ({
-  type: 'versionstamp', value: Buffer.concat([vs, codeBuf(code)])
+  type: 'versionstamp', value: Buffer.concat([vs, codeBuf(code)]),
 })
 
 withEachDb(db => describe('key value functionality', () => {
@@ -99,7 +99,7 @@ withEachDb(db => describe('key value functionality', () => {
         const val = encoders.int32BE.unpack((await tn.get(key)) as Buffer)
         tn.set(key, encoders.int32BE.pack(val + 1))
         txnAttempts++
-      })
+      }),
     ))
 
     const result = encoders.int32BE.unpack((await db.get(key)) as Buffer)
@@ -228,7 +228,7 @@ withEachDb(db => describe('key value functionality', () => {
       assert.deepStrictEqual(results, [
         [key1, '1'],
         [key2, '2'],
-        [key3, '3']
+        [key3, '3'],
       ])
     })
 
@@ -300,7 +300,7 @@ withEachDb(db => describe('key value functionality', () => {
       assert.deepStrictEqual(results, [
         ['1', val1],
         ['2', val2],
-        ['3', val3]
+        ['3', val3],
       ])
     })
 

@@ -12,7 +12,7 @@ export const int32LE: Transformer<number, number> = {
   },
   unpack(buf) {
     return buf.readInt32LE()
-  }
+  },
 }
 
 export const int32BE: Transformer<number, number> = {
@@ -24,7 +24,7 @@ export const int32BE: Transformer<number, number> = {
   },
   unpack(buf) {
     return buf.readInt32BE()
-  }
+  },
 }
 
 export const uint32LE: Transformer<number, number> = {
@@ -36,7 +36,7 @@ export const uint32LE: Transformer<number, number> = {
   },
   unpack(buf) {
     return buf.readUInt32LE()
-  }
+  },
 }
 
 export const uint32BE: Transformer<number, number> = {
@@ -48,7 +48,7 @@ export const uint32BE: Transformer<number, number> = {
   },
   unpack(buf) {
     return buf.readUInt32BE()
-  }
+  },
 }
 
 export const bigint64LE: Transformer<bigint, bigint> = {
@@ -61,7 +61,7 @@ export const bigint64LE: Transformer<bigint, bigint> = {
   },
   unpack(buf) {
     return buf.readBigInt64LE()
-  }
+  },
 }
 
 export const bigint64BE: Transformer<bigint, bigint> = {
@@ -74,7 +74,7 @@ export const bigint64BE: Transformer<bigint, bigint> = {
   },
   unpack(buf) {
     return buf.readBigInt64BE()
-  }
+  },
 }
 
 export const biguint64LE: Transformer<bigint, bigint> = {
@@ -87,7 +87,7 @@ export const biguint64LE: Transformer<bigint, bigint> = {
   },
   unpack(buf) {
     return buf.readBigUInt64LE()
-  }
+  },
 }
 
 export const biguint64BE: Transformer<bigint, bigint> = {
@@ -100,7 +100,7 @@ export const biguint64BE: Transformer<bigint, bigint> = {
   },
   unpack(buf) {
     return buf.readBigUInt64BE()
-  }
+  },
 }
 
 export const biguintLE: Transformer<bigint, bigint> = {
@@ -117,7 +117,7 @@ export const biguintLE: Transformer<bigint, bigint> = {
   },
   unpack(buf) {
     return BigInt(`0x${buf.toString('hex')}`)
-  }
+  },
 }
 
 export const json: Transformer<any, any> = {
@@ -126,7 +126,7 @@ export const json: Transformer<any, any> = {
   },
   unpack(buf) {
     return JSON.parse(buf.toString())
-  }
+  },
 }
 
 export const string: Transformer<string, string> = {
@@ -135,12 +135,12 @@ export const string: Transformer<string, string> = {
   },
   unpack(buf) {
     return buf.toString()
-  }
+  },
 }
 
 export const buf: Transformer<Buffer, Buffer> = {
   pack: id,
-  unpack: id
+  unpack: id,
 }
 
 export const tuple = tupleEncoder as any as Omit<typeof tupleEncoder, 'bakeVersionstamp'> & NonNullable<Transformer<TupleItem | TupleItem[], TupleItem[]>['bakeVersionstamp']>

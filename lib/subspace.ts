@@ -6,7 +6,7 @@
 import { prefixTransformer, defaultTransformer, defaultGetRange } from './transformer'
 import type { NativeValue, Transformer, UnboundStamp } from './types'
 import {
-  asBuf, concat2, emptyBuffer, startsWith, strInc
+  asBuf, concat2, emptyBuffer, startsWith, strInc,
 } from './util'
 
 const concatPrefix = (p1: Buffer, p2?: string | Buffer) => (
@@ -140,7 +140,7 @@ export default class Subspace<KeyIn = NativeValue, KeyOut = Buffer, ValIn = Nati
   packRange(start?: KeyIn, end?: KeyIn): { begin: NativeValue, end: NativeValue } {
     return {
       begin: start !== undefined ? this._bakedKeyXf.pack(start) : this.prefix,
-      end: end !== undefined ? this._bakedKeyXf.pack(end) : strInc(this.prefix)
+      end: end !== undefined ? this._bakedKeyXf.pack(end) : strInc(this.prefix),
     }
   }
 

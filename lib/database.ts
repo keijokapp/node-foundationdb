@@ -6,12 +6,12 @@ import {
   MutationType,
   TransactionOptions,
   databaseOptionData,
-  transactionOptionData
+  transactionOptionData,
 } from './opts.g'
 import Subspace, { root, GetSubspace, isGetSubspace } from './subspace'
 import Transaction from './transaction'
 import type {
-  KeySelector, NativeValue, RangeOptions, Transformer, Watch, WatchWithValue
+  KeySelector, NativeValue, RangeOptions, Transformer, Watch, WatchWithValue,
 } from './types'
 
 export default class Database<KeyIn = NativeValue, KeyOut = Buffer, ValIn = NativeValue, ValOut = Buffer> {
@@ -135,7 +135,7 @@ export default class Database<KeyIn = NativeValue, KeyOut = Buffer, ValIn = Nati
 
         return Promise.resolve()
       },
-      opts
+      opts,
     )
   }
 
@@ -211,7 +211,7 @@ export default class Database<KeyIn = NativeValue, KeyOut = Buffer, ValIn = Nati
   getRangeAll(
     start?: KeyIn | KeySelector<undefined | KeyIn>,
     end?: KeyIn | KeySelector<undefined | KeyIn>,
-    opts?: RangeOptions
+    opts?: RangeOptions,
   ) {
     return this.doTransaction(tn => tn.snapshot().getRangeAll(start, end, opts))
   }

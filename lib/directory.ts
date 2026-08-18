@@ -11,7 +11,7 @@ import {
   concat2,
   emptyBuffer,
   startsWith,
-  strInc
+  strInc,
 } from './util'
 import type { DirectoryLayerOpts, NativeValue, Transformer } from './types'
 
@@ -75,12 +75,12 @@ const arrEq = <T>(x: T[], y: T[]): boolean => {
 // Wrapper for functions which take a database or a transaction.
 const doTxn = <KeyIn, KeyOut, ValIn, ValOut, T>(
   dbOrTxn: Database<KeyIn, KeyOut, ValIn, ValOut> | Transaction<KeyIn, KeyOut, ValIn, ValOut>,
-  body: (tn: Transaction<KeyIn, KeyOut, ValIn, ValOut>) => Promise<T>
+  body: (tn: Transaction<KeyIn, KeyOut, ValIn, ValOut>) => Promise<T>,
 ): Promise<T> => dbOrTxn instanceof Database ? dbOrTxn.doTn(body) : body(dbOrTxn)
 
 const voidEncoding: Transformer<void, void> = {
   pack() { return emptyBuffer },
-  unpack() { return null }
+  unpack() { return null },
 }
 
 type Version = [number, number, number]
@@ -98,7 +98,7 @@ const versionEncoder: Transformer<Version, Version> = {
   },
   unpack(buf) {
     return [buf.readUInt32LE(0), buf.readUInt32LE(4), buf.readUInt32LE(8)]
-  }
+  },
 }
 
 const windowSize = (start: number) => (
@@ -382,7 +382,7 @@ export class Directory<KeyIn = NativeValue, KeyOut = Buffer, ValIn = NativeValue
       // layer. We create our own internally inside the partition.
       const directoryLayer = new DirectoryLayer({
         nodeSubspace: contentSubspace.atRaw(DEFAULT_NODE_PREFIX).withKeyEncoding(tuple).withValueEncoding(defaultTransformer),
-        contentSubspace
+        contentSubspace,
       })
       directoryLayer._path = path
 
@@ -590,7 +590,7 @@ export class DirectoryLayer {
             layer,
             reqPrefix,
             allowCreate,
-            allowOpen
+            allowOpen,
           )
         }
 
@@ -915,7 +915,7 @@ export class DirectoryLayer {
       node = new Node(
         ref != null ? this._nodeSubspace.at(ref) : undefined,
         path.slice(0, i + 1),
-        path
+        path,
       )
 
       if (ref == null || (await node.getLayer(txn)).equals(PARTITION_BUF)) {

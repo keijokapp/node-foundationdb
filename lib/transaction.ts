@@ -7,11 +7,11 @@ import type {
   UnboundStamp,
   Version,
   Watch,
-  WatchOptions
+  WatchOptions,
 } from './types'
 import keySelector from './keySelector'
 import {
-  NativeTransaction
+  NativeTransaction,
 } from './native'
 import { MutationType, StreamingMode, TransactionOptionCode } from './opts.g'
 import Subspace, { GetSubspace } from './subspace'
@@ -92,7 +92,7 @@ export default class Transaction<KeyIn = NativeValue, KeyOut = Buffer, ValIn = N
     tn: NativeTransaction,
     snapshot: boolean,
     subspace: Subspace<KeyIn, KeyOut, ValIn, ValOut>,
-    ctx?: TxnCtx
+    ctx?: TxnCtx,
   ) {
     this._tn = tn
 
@@ -100,7 +100,7 @@ export default class Transaction<KeyIn = NativeValue, KeyOut = Buffer, ValIn = N
     this.subspace = subspace
 
     this._ctx = ctx ?? {
-      nextCode: 0
+      nextCode: 0,
     }
   }
 
@@ -131,7 +131,7 @@ export default class Transaction<KeyIn = NativeValue, KeyOut = Buffer, ValIn = N
       const stamp = await stampPromise.promise
 
       this._ctx.toBake!.forEach(
-        ({ item, transformer, code }) => transformer.bakeVersionstamp!(item, stamp, code)
+        ({ item, transformer, code }) => transformer.bakeVersionstamp!(item, stamp, code),
       )
     }
 
@@ -291,7 +291,7 @@ export default class Transaction<KeyIn = NativeValue, KeyOut = Buffer, ValIn = N
     targetBytes: number,
     streamingMode: StreamingMode,
     iter: number,
-    reverse: boolean
+    reverse: boolean,
   ): Promise<KVList<Buffer, Buffer>> {
     this._assertValid()
 
@@ -309,7 +309,7 @@ export default class Transaction<KeyIn = NativeValue, KeyOut = Buffer, ValIn = N
       streamingMode,
       iter,
       this.isSnapshot,
-      reverse
+      reverse,
     )
   }
 
@@ -320,7 +320,7 @@ export default class Transaction<KeyIn = NativeValue, KeyOut = Buffer, ValIn = N
     targetBytes: number,
     streamingMode: StreamingMode,
     iter: number,
-    reverse: boolean
+    reverse: boolean,
   ): Promise<KVList<KeyOut, ValOut>> {
     return this.getRangeNative(
       keySelector(this.subspace.packKey(start.key), start.orEqual, start.offset),
@@ -329,7 +329,7 @@ export default class Transaction<KeyIn = NativeValue, KeyOut = Buffer, ValIn = N
       targetBytes,
       streamingMode,
       iter,
-      reverse
+      reverse,
     )
       .then(r => ({ more: r.more, results: this._encodeRangeResult(r.results) }))
   }
@@ -348,7 +348,7 @@ export default class Transaction<KeyIn = NativeValue, KeyOut = Buffer, ValIn = N
     const range = this.subspace.packRange(start, end)
 
     return this._tn.getRangeSplitPoints(range.begin, range.end, chunkSize).then(
-      results => results.map(r => this.subspace.unpackKey(r))
+      results => results.map(r => this.subspace.unpackKey(r)),
     )
   }
 
@@ -358,8 +358,8 @@ export default class Transaction<KeyIn = NativeValue, KeyOut = Buffer, ValIn = N
     {
       limit = 0,
       reverse = false,
-      streamingMode = StreamingMode.Iterator
-    }: RangeOptions = {}
+      streamingMode = StreamingMode.Iterator,
+    }: RangeOptions = {},
   ) {
     let iter = 0
 
@@ -371,7 +371,7 @@ export default class Transaction<KeyIn = NativeValue, KeyOut = Buffer, ValIn = N
         0,
         streamingMode,
         ++iter,
-        reverse
+        reverse,
       )
 
       if (results.length) {
@@ -420,7 +420,7 @@ export default class Transaction<KeyIn = NativeValue, KeyOut = Buffer, ValIn = N
   getRangeBatch(
     start?: KeyIn | KeySelector<undefined | KeyIn>,
     end?: KeyIn | KeySelector<undefined | KeyIn>,
-    opts: RangeOptions = {}
+    opts: RangeOptions = {},
   ) {
     const startSelector = keySelector.from(start)
     const endSelector = keySelector.from(end)
@@ -429,7 +429,7 @@ export default class Transaction<KeyIn = NativeValue, KeyOut = Buffer, ValIn = N
     return this.getRangeBatchNative(
       keySelector(range.begin, startSelector.orEqual, startSelector.offset),
       keySelector(range.end, endSelector.orEqual, endSelector.offset),
-      opts
+      opts,
     )
   }
 
@@ -446,7 +446,7 @@ export default class Transaction<KeyIn = NativeValue, KeyOut = Buffer, ValIn = N
     return this.getRangeBatchNative(
       keySelector(range.begin, prefixSelector.orEqual, prefixSelector.offset),
       keySelector.firstGreaterOrEqual(range.end),
-      opts
+      opts,
     )
   }
 
@@ -493,7 +493,7 @@ export default class Transaction<KeyIn = NativeValue, KeyOut = Buffer, ValIn = N
   async* getRange(
     start?: KeyIn | KeySelector<undefined | KeyIn>,
     end?: KeyIn | KeySelector<undefined | KeyIn>,
-    opts?: RangeOptions
+    opts?: RangeOptions,
   ) {
     for await (const batch of this.getRangeBatch(start, end, opts)) {
       for (const pair of batch) {
@@ -510,7 +510,7 @@ export default class Transaction<KeyIn = NativeValue, KeyOut = Buffer, ValIn = N
    */
   async* getRangeStartsWith(
     prefix: KeyIn | KeySelector<KeyIn>,
-    opts: RangeOptions = {}
+    opts: RangeOptions = {},
   ) {
     for await (const batch of this.getRangeBatchStartsWith(prefix, opts)) {
       for (const pair of batch) {
@@ -531,7 +531,7 @@ export default class Transaction<KeyIn = NativeValue, KeyOut = Buffer, ValIn = N
   async getRangeAll(
     start?: KeyIn | KeySelector<undefined | KeyIn>,
     end?: KeyIn | KeySelector<undefined | KeyIn>,
-    opts?: RangeOptions
+    opts?: RangeOptions,
   ) {
     const childOpts: RangeOptions = opts?.streamingMode == null
       ? { ...opts, streamingMode: StreamingMode.WantAll }
@@ -858,7 +858,7 @@ export default class Transaction<KeyIn = NativeValue, KeyOut = Buffer, ValIn = N
     if (val != null) {
       return val.length <= 10
         ? {
-          stamp: val
+          stamp: val,
         }
         : {
           stamp: val.subarray(0, 10),
@@ -869,7 +869,7 @@ export default class Transaction<KeyIn = NativeValue, KeyOut = Buffer, ValIn = N
           // for the decoder and that can cause issues. We'll just return undefined
           // in that case - but, yeah, controversial. You might want some other
           // encoding or something. File an issue if this causes you grief.
-          value: this.subspace.unpackValue(val.subarray(10))
+          value: this.subspace.unpackValue(val.subarray(10)),
         }
     }
   }

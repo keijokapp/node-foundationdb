@@ -26,7 +26,7 @@ export {
   NetworkOptions,
   StreamingMode,
   TransactionOptionCode,
-  TransactionOptions
+  TransactionOptions,
 } from './opts.g'
 export { default as Subspace, root } from './subspace'
 export { default as Transaction } from './transaction'

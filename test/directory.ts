@@ -1,4 +1,4 @@
-import * as assert from 'assert'
+import assert from 'assert'
 import { describe, it } from 'mocha'
 import * as fdb from '../lib'
 import { HighContentionAllocator } from '../lib/directory'
@@ -86,7 +86,7 @@ withEachDb(db => describe('directory layer', () => {
     // I can actually reuse this directory layer because its stateless.
     const dl = new fdb.DirectoryLayer({
       contentSubspace: db.subspace.at('content'),
-      nodeSubspace: db.subspace.at('\xfe')
+      nodeSubspace: db.subspace.at('\xfe'),
     })
 
     it('can make a directory', async () => {

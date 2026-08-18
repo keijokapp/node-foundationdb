@@ -19,10 +19,10 @@
 // 4. Use the run_tester_loop.sh script to run the bindings tester. You will need to comment out the other bindings
 //    and add 'node'.
 
-import * as assert from 'assert'
+import assert from 'assert'
 import * as fs from 'fs'
 import * as nodeUtil from 'util'
-import * as chalk from 'chalk'
+import chalk from 'chalk'
 import * as fdb from '../lib'
 import {
   Database,
@@ -38,7 +38,7 @@ import {
   TupleItem,
   keySelector,
   tuple,
-  util
+  util,
 } from '../lib'
 import { concat2, emptyBuffer, startsWith } from '../lib/util'
 import { packPrefixedVersionstamp } from '../lib/versionstamp'
@@ -57,7 +57,7 @@ const tupleStrict: Transformer<TupleItem | TupleItem[], TupleItem[]> = {
   name: 'tuple strict',
   unpack(val) {
     return tuple.unpack(val, true)
-  }
+  },
 }
 
 const colors = [chalk.blueBright, chalk.red, chalk.cyan, chalk.greenBright, chalk.grey]
@@ -265,7 +265,7 @@ const makeMachine = (db: Database, initialName: Buffer) => {
       // This is helpful for debugging write conflicts, and things like that.
       const opts: fdb.TransactionOptions = {
         debug_transaction_identifier: `${instrId}`,
-        log_transaction: true
+        log_transaction: true,
       }
 
       transactions[tnNameKey()] = db.rawCreateTransaction(instrId > 430 ? undefined : opts);
@@ -323,7 +323,7 @@ const makeMachine = (db: Database, initialName: Buffer) => {
       const results = await oper.getRangeAll(
         keySelector.from(beginKey),
         keySelector.from(endKey),
-        { streamingMode, limit, reverse }
+        { streamingMode, limit, reverse },
       )
 
       pushTupleItem(tuple.pack(Array.prototype.concat.apply([], results)))
@@ -583,9 +583,9 @@ const makeMachine = (db: Database, initialName: Buffer) => {
           ? new fdb.DirectoryLayer({
             nodeSubspace,
             contentSubspace,
-            allowManualPrefixes
+            allowManualPrefixes,
           })
-          : undefined
+          : undefined,
       )
     },
 
@@ -771,7 +771,7 @@ const makeMachine = (db: Database, initialName: Buffer) => {
       } else {
         pushValue(byteArray.slice(prefix.length))
       }
-    }
+    },
   }
 
   return {
@@ -828,7 +828,7 @@ const makeMachine = (db: Database, initialName: Buffer) => {
             'DIRECTORY_OPEN',
             'DIRECTORY_MOVE',
             'DIRECTORY_MOVE_TO',
-            'DIRECTORY_OPEN_SUBSPACE'
+            'DIRECTORY_OPEN_SUBSPACE',
           ].includes(opcode)) {
             dirList.push(undefined)
           }
@@ -854,7 +854,7 @@ const makeMachine = (db: Database, initialName: Buffer) => {
       }
 
       instrId++
-    }
+    },
   }
 }
 
@@ -905,7 +905,7 @@ if (require.main === module) {
     fdb.setAPIVersion(requestedAPIVersion)
     fdb.configNetwork({
     // trace_enable: 'trace',
-      trace_log_group: 'debug'
+      trace_log_group: 'debug',
     // trace_format: 'json',
     // external_client_library: '~/3rdparty/foundationdb/lib/libfdb_c.dylib-debug',
     })

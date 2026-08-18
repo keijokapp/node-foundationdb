@@ -1,5 +1,5 @@
 import {
-  after, afterEach, beforeEach, describe
+  after, afterEach, beforeEach, describe,
 } from 'mocha'
 import * as fdb from '../lib'
 
