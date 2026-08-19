@@ -40,4 +40,6 @@ export { default as Subspace, root } from './subspace.js'
 
 export { default as Transaction } from './transaction.js'
 
+export { NestedConflictError } from './nested.js'
+
 export type * from './types.js'
