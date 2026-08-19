@@ -1,3 +1,5 @@
+import { FoundationDbTransaction } from './foundationdb.js'
+import { NestedTransaction } from './nested.js'
 import type { StreamingMode } from './opts.g.js'
 import type Subspace from './subspace.js'
 
@@ -80,3 +82,5 @@ export interface WatchWithValue<Value> extends Watch {
 export type WatchOptions = {
   throwAllErrors?: undefined | boolean
 }
+
+export type BaseTransaction = FoundationDbTransaction | NestedTransaction
